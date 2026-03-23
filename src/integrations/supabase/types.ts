@@ -14,7 +14,123 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      estoque: {
+        Row: {
+          canal: string
+          categoria: string
+          created_at: string
+          data: string
+          id: string
+          quantidade: number
+          sku: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          canal?: string
+          categoria: string
+          created_at?: string
+          data: string
+          id?: string
+          quantidade: number
+          sku: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          canal?: string
+          categoria?: string
+          created_at?: string
+          data?: string
+          id?: string
+          quantidade?: number
+          sku?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      marketing: {
+        Row: {
+          canal_origem: string
+          created_at: string
+          data: string
+          id: string
+          nome: string
+          observacoes: string
+          qtd_enviada: number
+          seguidores_gerados: number
+          sku: string
+          tipo: string
+          updated_at: string
+          vendas_geradas: number
+        }
+        Insert: {
+          canal_origem?: string
+          created_at?: string
+          data: string
+          id?: string
+          nome: string
+          observacoes?: string
+          qtd_enviada: number
+          seguidores_gerados?: number
+          sku: string
+          tipo: string
+          updated_at?: string
+          vendas_geradas?: number
+        }
+        Update: {
+          canal_origem?: string
+          created_at?: string
+          data?: string
+          id?: string
+          nome?: string
+          observacoes?: string
+          qtd_enviada?: number
+          seguidores_gerados?: number
+          sku?: string
+          tipo?: string
+          updated_at?: string
+          vendas_geradas?: number
+        }
+        Relationships: []
+      }
+      vendas: {
+        Row: {
+          canal: string
+          created_at: string
+          data: string
+          formato: string
+          id: string
+          preco_unitario: number
+          quantidade: number
+          sku: string
+          updated_at: string
+        }
+        Insert: {
+          canal: string
+          created_at?: string
+          data: string
+          formato: string
+          id?: string
+          preco_unitario: number
+          quantidade: number
+          sku: string
+          updated_at?: string
+        }
+        Update: {
+          canal?: string
+          created_at?: string
+          data?: string
+          formato?: string
+          id?: string
+          preco_unitario?: number
+          quantidade?: number
+          sku?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
