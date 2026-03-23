@@ -1,15 +1,24 @@
+import { useState, useEffect } from "react";
 import PageHeader from "@/components/PageHeader";
 import KpiCard from "@/components/KpiCard";
-import { DollarSign, TrendingUp, Boxes, ShoppingCart, Target, Users, Package, Megaphone } from "lucide-react";
+import { DollarSign, TrendingUp, Boxes, ShoppingCart, Megaphone } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from "recharts";
-import { getEstoque, getVendas, getMarketing, calcSaldoEstoque, calcSaldoPorSku, SKUS, CANAIS, CONFIG } from "@/lib/store";
+import { fetchEstoque, fetchVendas, fetchMarketing, calcSaldoEstoque, calcSaldoPorSku, SKUS, CANAIS, CONFIG, SKU_COLORS, EstoqueRecord, VendaRecord, MarketingRecord } from "@/lib/store";
 
-const COLORS = ["#4F028B", "#7B3FAF", "#A855F7", "#C084FC"];
+const COLORS = ["#4F028B", "#DC2626", "#EAB308", "#2563EB"];
 
 const DashboardPage = () => {
-  const estoque = getEstoque();
-  const vendas = getVendas();
-  const marketing = getMarketing();
+  const [estoque, setEstoque] = useState<EstoqueRecord[]>([]);
+  const [vendas, setVendas] = useState<VendaRecord[]>([]);
+  const [marketing, setMarketing] = useState<MarketingRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([fetchEstoque(), fetchVendas(), fetchMarketing()])
+      .then(([e, v, m]) => { setEstoque(e); setVendas(v); setMarketing(m); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
   const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const saldo = calcSaldoEstoque(estoque);
@@ -25,7 +34,6 @@ const DashboardPage = () => {
   const cac = totalVendido ? mktCusto / totalVendido : 0;
   const mktPct = totalProduzido ? (estoque.filter(r => r.tipo === "Saída" && r.categoria === "Marketing").reduce((a, r) => a + r.quantidade, 0) / totalProduzido * 100) : 0;
 
-  // Charts
   const receitaPorCanal = CANAIS.map(c => ({
     name: c.includes("(") ? c.split("(")[0].trim() : c,
     value: vendas.filter(v => v.canal === c).reduce((a, v) => a + v.quantidade * v.precoUnitario, 0),
@@ -38,25 +46,24 @@ const DashboardPage = () => {
   }).filter(d => d.margem > 0);
 
   const vendasPorSku = SKUS.map(s => ({
-    name: s.split(" ")[0],
+    name: s,
     qty: vendas.filter(v => v.sku === s).reduce((a, v) => a + v.quantidade, 0),
   })).sort((a, b) => b.qty - a.qty);
 
-  // Daily evolution
   const dailyMap: Record<string, number> = {};
   vendas.forEach(v => { dailyMap[v.data] = (dailyMap[v.data] || 0) + v.quantidade * v.precoUnitario; });
   const dailyData = Object.entries(dailyMap).sort().map(([data, receita]) => ({ data: data.slice(5), receita }));
 
-  // Best canal
   const canalReceitas = CANAIS.map(c => ({ canal: c, receita: vendas.filter(v => v.canal === c).reduce((a, v) => a + v.quantidade * v.precoUnitario, 0) }));
   const melhorCanal = canalReceitas.sort((a, b) => b.receita - a.receita)[0];
   const melhorSku = vendasPorSku[0];
+
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
 
   return (
     <div className="min-h-screen bg-background">
       <PageHeader title="Dashboard Investidor" subtitle="Visão estratégica consolidada" />
       <div className="mx-auto max-w-7xl px-6 py-8 space-y-8 animate-fade-in">
-        {/* Investor Report Summary */}
         <div className="gradient-dark rounded-xl p-8 text-white">
           <h2 className="font-display text-2xl font-bold mb-6">📊 Investor Report — Smell & Go</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-5">
@@ -80,7 +87,6 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* KPI Row */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <KpiCard label="Receita Total" value={fmt(receitaTotal)} icon={DollarSign} variant="primary" />
           <KpiCard label="Lucro Total" value={fmt(lucroTotal)} icon={TrendingUp} variant="success" />
@@ -88,7 +94,6 @@ const DashboardPage = () => {
           <KpiCard label="% Mkt no Estoque" value={`${mktPct.toFixed(1)}%`} icon={Megaphone} variant="warning" />
         </div>
 
-        {/* Charts Grid */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="rounded-lg border border-border bg-card p-6">
             <h3 className="font-display font-semibold mb-4">Receita por Canal</h3>
@@ -111,7 +116,9 @@ const DashboardPage = () => {
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
-                <Bar dataKey="qty" name="Unidades" fill="#4F028B" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="qty" name="Unidades" radius={[6, 6, 0, 0]}>
+                  {vendasPorSku.map((entry) => <Cell key={entry.name} fill={SKU_COLORS[entry.name] || "#4F028B"} />)}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -123,8 +130,8 @@ const DashboardPage = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} />
-                <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
-                <Bar dataKey="margem" name="Margem %" fill="#7B3FAF" radius={[6, 6, 0, 0]} />
+                <Tooltip formatter={(v: number) => `${(v as number).toFixed(1)}%`} />
+                <Bar dataKey="margem" name="Margem %" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -137,26 +144,25 @@ const DashboardPage = () => {
                 <XAxis dataKey="data" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip formatter={(v: number) => fmt(v)} />
-                <Line type="monotone" dataKey="receita" stroke="#4F028B" strokeWidth={2} dot={{ fill: "#4F028B", r: 4 }} />
+                <Line type="monotone" dataKey="receita" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: "hsl(var(--primary))", r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Estoque por SKU */}
         <div className="rounded-lg border border-border bg-card p-6">
           <h3 className="font-display font-semibold mb-4">Estoque Atual por Fragrância</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
-            {SKUS.map((sku, i) => {
+            {SKUS.map((sku) => {
               const s = saldoPorSku[sku] || 0;
               const pct = totalProduzido ? (s / totalProduzido) * 100 : 0;
               return (
                 <div key={sku} className="rounded-lg border border-border p-4 text-center transition-all hover:shadow-card hover:border-primary/20">
                   <div className="mx-auto mb-2 h-3 w-full rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${Math.min(pct * 5, 100)}%`, backgroundColor: COLORS[i % COLORS.length] }} />
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(pct * 5, 100)}%`, backgroundColor: SKU_COLORS[sku] }} />
                   </div>
                   <p className="text-sm font-medium">{sku}</p>
-                  <p className="text-2xl font-bold font-display" style={{ color: COLORS[i % COLORS.length] }}>{s}</p>
+                  <p className="text-2xl font-bold font-display" style={{ color: SKU_COLORS[sku] }}>{s}</p>
                   <p className="text-xs text-muted-foreground">unidades</p>
                 </div>
               );

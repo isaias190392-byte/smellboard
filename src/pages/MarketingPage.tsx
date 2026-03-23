@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Megaphone, Users, TrendingUp } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import KpiCard from "@/components/KpiCard";
@@ -9,18 +9,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { MarketingRecord, getMarketing, saveMarketing, SKUS, TIPOS_MARKETING, CONFIG } from "@/lib/store";
+import { MarketingRecord, fetchMarketing, insertMarketing, SKUS, TIPOS_MARKETING, CONFIG } from "@/lib/store";
 
 const MarketingPage = () => {
-  const [records, setRecords] = useState<MarketingRecord[]>(getMarketing());
+  const [records, setRecords] = useState<MarketingRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ data: "", nome: "", tipo: "", sku: "", qtdEnviada: "", canalOrigem: "", vendasGeradas: "", seguidoresGerados: "", observacoes: "" });
+
+  useEffect(() => {
+    fetchMarketing().then(d => { setRecords(d); setLoading(false); }).catch(() => { toast.error("Erro ao carregar marketing"); setLoading(false); });
+  }, []);
 
   const totalEnviado = records.reduce((a, r) => a + r.qtdEnviada, 0);
   const custoTotal = totalEnviado * CONFIG.custoUnitario;
   const vendasGeradas = records.reduce((a, r) => a + r.vendasGeradas, 0);
   const seguidores = records.reduce((a, r) => a + r.seguidoresGerados, 0);
-  const roi = custoTotal ? ((vendasGeradas * CONFIG.custoUnitario - custoTotal) / custoTotal * 100) : 0;
 
   const chartData = records.map(r => ({
     name: r.nome.length > 12 ? r.nome.slice(0, 12) + "…" : r.nome,
@@ -28,22 +32,26 @@ const MarketingPage = () => {
     custo: r.qtdEnviada * CONFIG.custoUnitario,
   }));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.data || !form.nome || !form.tipo || !form.sku || !form.qtdEnviada) {
       toast.error("Preencha os campos obrigatórios"); return;
     }
-    const updated = [...records, {
-      id: crypto.randomUUID(), data: form.data, nome: form.nome, tipo: form.tipo,
-      sku: form.sku, qtdEnviada: parseInt(form.qtdEnviada),
-      canalOrigem: form.canalOrigem, vendasGeradas: parseInt(form.vendasGeradas) || 0,
-      seguidoresGerados: parseInt(form.seguidoresGerados) || 0, observacoes: form.observacoes,
-    }];
-    setRecords(updated); saveMarketing(updated);
-    setForm({ data: "", nome: "", tipo: "", sku: "", qtdEnviada: "", canalOrigem: "", vendasGeradas: "", seguidoresGerados: "", observacoes: "" });
-    setOpen(false); toast.success("Ação registrada!");
+    try {
+      const newRecord = await insertMarketing({
+        data: form.data, nome: form.nome, tipo: form.tipo, sku: form.sku,
+        qtdEnviada: parseInt(form.qtdEnviada), canalOrigem: form.canalOrigem,
+        vendasGeradas: parseInt(form.vendasGeradas) || 0,
+        seguidoresGerados: parseInt(form.seguidoresGerados) || 0, observacoes: form.observacoes,
+      });
+      setRecords(prev => [...prev, newRecord]);
+      setForm({ data: "", nome: "", tipo: "", sku: "", qtdEnviada: "", canalOrigem: "", vendasGeradas: "", seguidoresGerados: "", observacoes: "" });
+      setOpen(false); toast.success("Ação registrada!");
+    } catch { toast.error("Erro ao salvar"); }
   };
 
   const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
 
   return (
     <div className="min-h-screen bg-background">
@@ -64,8 +72,8 @@ const MarketingPage = () => {
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Bar dataKey="vendas" name="Vendas" fill="#4F028B" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="custo" name="Custo (R$)" fill="#C084FC" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="vendas" name="Vendas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="custo" name="Custo (R$)" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -123,7 +131,7 @@ const MarketingPage = () => {
                       <TableCell className="text-right">{fmt(custo)}</TableCell>
                       <TableCell className="text-right font-medium">{r.vendasGeradas}</TableCell>
                       <TableCell className="text-right">
-                        <span className={`text-xs font-medium ${roiVal >= 0 ? "text-emerald-600" : "text-red-600"}`}>{roiVal.toFixed(0)}%</span>
+                        <span className={`text-xs font-medium ${roiVal >= 0 ? "text-emerald-600" : "text-destructive"}`}>{roiVal.toFixed(0)}%</span>
                       </TableCell>
                       <TableCell className="text-right">{r.seguidoresGerados}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{r.observacoes}</TableCell>
