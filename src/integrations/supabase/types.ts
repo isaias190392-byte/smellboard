@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           data: string
           id: string
+          observacoes: string
           quantidade: number
           sku: string
           tipo: string
@@ -32,6 +33,7 @@ export type Database = {
           created_at?: string
           data: string
           id?: string
+          observacoes?: string
           quantidade: number
           sku: string
           tipo: string
@@ -43,7 +45,65 @@ export type Database = {
           created_at?: string
           data?: string
           id?: string
+          observacoes?: string
           quantidade?: number
+          sku?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      financeiro: {
+        Row: {
+          created_at: string
+          custo_total: number
+          custo_unitario: number
+          data: string
+          descricao: string
+          frete: number
+          id: string
+          lucro_bruto: number
+          markup: number
+          observacoes: string
+          preco_venda: number
+          quantidade: number
+          receita: number
+          sku: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custo_total?: number
+          custo_unitario?: number
+          data: string
+          descricao?: string
+          frete?: number
+          id?: string
+          lucro_bruto?: number
+          markup?: number
+          observacoes?: string
+          preco_venda?: number
+          quantidade?: number
+          receita?: number
+          sku?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custo_total?: number
+          custo_unitario?: number
+          data?: string
+          descricao?: string
+          frete?: number
+          id?: string
+          lucro_bruto?: number
+          markup?: number
+          observacoes?: string
+          preco_venda?: number
+          quantidade?: number
+          receita?: number
           sku?: string
           tipo?: string
           updated_at?: string
