@@ -133,11 +133,12 @@ export async function fetchEstoque(): Promise<EstoqueRecord[]> {
 }
 
 export async function insertEstoque(record: Omit<EstoqueRecord, "id">): Promise<EstoqueRecord> {
-  const { data, error } = await supabase.from("estoque").insert({
+  const insertData: Record<string, unknown> = {
     data: record.data, tipo: record.tipo, categoria: record.categoria,
     canal: record.canal, sku: record.sku, quantidade: record.quantidade,
     observacoes: record.observacoes || "",
-  } as Record<string, unknown>).select().single();
+  };
+  const { data, error } = await supabase.from("estoque").insert([insertData as never]).select().single();
   if (error) throw error;
   return { id: data.id, data: data.data, tipo: data.tipo as "Entrada" | "Saída", categoria: data.categoria, canal: data.canal, sku: data.sku, quantidade: data.quantidade, observacoes: (data as Record<string, unknown>).observacoes as string || "" };
 }
