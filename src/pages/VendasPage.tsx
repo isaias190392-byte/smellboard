@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { VendaRecord, fetchVendas, insertVenda, updateVenda, deleteVenda, SKUS, CANAIS, FORMATOS, CONFIG, SKU_COLORS } from "@/lib/store";
+import { VendaRecord, fetchVendas, insertVenda, updateVenda, deleteVenda, insertEstoque, SKUS, CANAIS, FORMATOS, CONFIG, SKU_COLORS, FORMATO_MULTIPLICADOR } from "@/lib/store";
 import * as XLSX from "xlsx";
 
 const CHANNEL_COLORS = ["#4F028B", "#DC2626", "#EAB308", "#2563EB"];
@@ -21,12 +21,10 @@ const VendasPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ data: "", canal: "", sku: "", formato: "", quantidade: "", precoUnitario: "" });
 
-  // Filters
   const [filterSku, setFilterSku] = useState<string>("all");
   const [filterCanal, setFilterCanal] = useState<string>("all");
   const [filterFormato, setFilterFormato] = useState<string>("all");
 
-  // Cross-filter from charts
   const [chartFilterCanal, setChartFilterCanal] = useState<string | null>(null);
   const [chartFilterSku, setChartFilterSku] = useState<string | null>(null);
 
@@ -36,7 +34,18 @@ const VendasPage = () => {
 
   const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  // Records filtered by chart selections for cross-filtering
+  // Calcula unidades reais baseado no formato
+  const getUnidadesReais = (r: VendaRecord) => {
+    const mult = FORMATO_MULTIPLICADOR[r.formato] || 1;
+    return r.quantidade * mult;
+  };
+
+  // Preço unitário por unidade individual
+  const getPrecoUnitarioReal = (r: VendaRecord) => {
+    const mult = FORMATO_MULTIPLICADOR[r.formato] || 1;
+    return r.precoUnitario / mult;
+  };
+
   const chartFilteredRecords = useMemo(() => {
     return records.filter(r => {
       if (chartFilterCanal && r.canal !== chartFilterCanal) return false;
@@ -46,11 +55,11 @@ const VendasPage = () => {
   }, [records, chartFilterCanal, chartFilterSku]);
 
   const receitaTotal = chartFilteredRecords.reduce((a, v) => a + v.quantidade * v.precoUnitario, 0);
-  const custoTotal = chartFilteredRecords.reduce((a, v) => a + v.quantidade * CONFIG.custoUnitario, 0);
+  const unidadesTotais = chartFilteredRecords.reduce((a, v) => a + getUnidadesReais(v), 0);
+  const custoTotal = unidadesTotais * CONFIG.custoUnitario;
   const lucroTotal = receitaTotal - custoTotal;
   const margem = receitaTotal ? (lucroTotal / receitaTotal) * 100 : 0;
 
-  // Pie chart data - filtered by chartFilterSku
   const porCanal = useMemo(() => {
     const filtered = chartFilterSku ? records.filter(r => r.sku === chartFilterSku) : records;
     return CANAIS.map(c => ({
@@ -60,16 +69,14 @@ const VendasPage = () => {
     })).filter(d => d.value > 0);
   }, [records, chartFilterSku]);
 
-  // Bar chart data - filtered by chartFilterCanal
   const porSku = useMemo(() => {
     const filtered = chartFilterCanal ? records.filter(r => r.canal === chartFilterCanal) : records;
     return SKUS.map(s => ({
       name: s,
-      qty: filtered.filter(r => r.sku === s).reduce((a, r) => a + r.quantidade, 0),
+      qty: filtered.filter(r => r.sku === s).reduce((a, r) => a + getUnidadesReais(r), 0),
     })).filter(d => d.qty > 0).sort((a, b) => b.qty - a.qty);
   }, [records, chartFilterCanal]);
 
-  // Table filters
   const filteredRecords = useMemo(() => {
     return chartFilteredRecords.filter(r => {
       if (filterSku !== "all" && r.sku !== filterSku) return false;
@@ -93,6 +100,15 @@ const VendasPage = () => {
       } else {
         const newRecord = await insertVenda({ data: form.data, canal: form.canal, sku: form.sku, formato: form.formato, quantidade: qty, precoUnitario: preco });
         setRecords(prev => [...prev, newRecord]);
+        // Registrar saída no estoque automaticamente
+        const mult = FORMATO_MULTIPLICADOR[form.formato] || 1;
+        const unidadesReais = qty * mult;
+        try {
+          await insertEstoque({
+            data: form.data, tipo: "Saída", categoria: "Venda",
+            canal: form.canal, sku: form.sku, quantidade: unidadesReais, observacoes: `Venda automática - ${form.formato} x${qty}`,
+          });
+        } catch { /* silently fail stock update */ }
         toast.success("Venda registrada!");
       }
       setForm({ data: "", canal: "", sku: "", formato: "", quantidade: "", precoUnitario: "" });
@@ -121,13 +137,17 @@ const VendasPage = () => {
   }, []);
 
   const exportExcel = () => {
-    const rows = filteredRecords.map(r => ({
-      Data: r.data, Canal: r.canal, SKU: r.sku, Formato: r.formato,
-      Quantidade: r.quantidade, "Preço Un.": r.precoUnitario,
-      Receita: r.quantidade * r.precoUnitario,
-      Custo: r.quantidade * CONFIG.custoUnitario,
-      Lucro: r.quantidade * r.precoUnitario - r.quantidade * CONFIG.custoUnitario,
-    }));
+    const rows = filteredRecords.map(r => {
+      const unidades = getUnidadesReais(r);
+      const receita = r.quantidade * r.precoUnitario;
+      const custo = unidades * CONFIG.custoUnitario;
+      return {
+        Data: r.data, Canal: r.canal, SKU: r.sku, Formato: r.formato,
+        Quantidade: r.quantidade, "Unidades Reais": unidades,
+        "Preço Total": r.precoUnitario, "Preço/Unidade": getPrecoUnitarioReal(r).toFixed(2),
+        Receita: receita, Custo: custo, Lucro: receita - custo,
+      };
+    });
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Vendas");
@@ -145,10 +165,9 @@ const VendasPage = () => {
           <KpiCard label="Receita Total" value={fmt(receitaTotal)} icon={DollarSign} variant="primary" />
           <KpiCard label="Lucro Bruto" value={fmt(lucroTotal)} icon={TrendingUp} variant="success" />
           <KpiCard label="Margem Média" value={`${margem.toFixed(1)}%`} icon={TrendingUp} />
-          <KpiCard label="Unidades Vendidas" value={`${chartFilteredRecords.reduce((a, v) => a + v.quantidade, 0)}`} icon={ShoppingCart} />
+          <KpiCard label="Unidades Vendidas" value={`${unidadesTotais}`} icon={ShoppingCart} />
         </div>
 
-        {/* Active chart filters indicator */}
         {(chartFilterCanal || chartFilterSku) && (
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Filtro ativo:</span>
@@ -169,14 +188,14 @@ const VendasPage = () => {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="rounded-lg border border-border bg-card p-6">
             <h3 className="font-display font-semibold mb-1">Receita por Canal</h3>
-            <p className="text-xs text-muted-foreground mb-4">Clique para filtrar o ranking por SKU{chartFilterSku ? ` (filtrado por ${chartFilterSku})` : ""}</p>
+            <p className="text-xs text-muted-foreground mb-4">Clique para filtrar{chartFilterSku ? ` (filtrado por ${chartFilterSku})` : ""}</p>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={porCanal} cx="50%" cy="50%" outerRadius={100} dataKey="value" 
+                <Pie data={porCanal} cx="50%" cy="50%" outerRadius={100} dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   onClick={handlePieClick} className="cursor-pointer">
                   {porCanal.map((entry, i) => (
-                    <Cell key={i} fill={CHANNEL_COLORS[i % CHANNEL_COLORS.length]} 
+                    <Cell key={i} fill={CHANNEL_COLORS[i % CHANNEL_COLORS.length]}
                       opacity={chartFilterCanal && chartFilterCanal !== entry.fullName ? 0.3 : 1}
                       stroke={chartFilterCanal === entry.fullName ? "#000" : "none"} strokeWidth={2} />
                   ))}
@@ -186,13 +205,13 @@ const VendasPage = () => {
             </ResponsiveContainer>
           </div>
           <div className="rounded-lg border border-border bg-card p-6">
-            <h3 className="font-display font-semibold mb-1">Ranking por SKU</h3>
-            <p className="text-xs text-muted-foreground mb-4">Clique para filtrar a receita por canal{chartFilterCanal ? ` (filtrado por ${chartFilterCanal.includes("(") ? chartFilterCanal.split("(")[0].trim() : chartFilterCanal})` : ""}</p>
+            <h3 className="font-display font-semibold mb-1">Ranking por SKU (Unidades)</h3>
+            <p className="text-xs text-muted-foreground mb-4">Clique para filtrar{chartFilterCanal ? ` (filtrado por ${chartFilterCanal.includes("(") ? chartFilterCanal.split("(")[0].trim() : chartFilterCanal})` : ""}</p>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={porSku} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={80} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={110} />
                 <Tooltip />
                 <Bar dataKey="qty" radius={[0, 6, 6, 0]} onClick={handleBarClick} className="cursor-pointer">
                   {porSku.map((entry) => (
@@ -229,7 +248,13 @@ const VendasPage = () => {
                       <SelectContent>{FORMATOS.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
                     </Select>
                     <Input type="number" min="1" placeholder="Quantidade" value={form.quantidade} onChange={e => setForm({ ...form, quantidade: e.target.value })} />
-                    <Input type="number" step="0.01" placeholder="Preço unitário (R$)" value={form.precoUnitario} onChange={e => setForm({ ...form, precoUnitario: e.target.value })} />
+                    <Input type="number" step="0.01" placeholder="Preço total da venda (R$)" value={form.precoUnitario} onChange={e => setForm({ ...form, precoUnitario: e.target.value })} />
+                    {form.formato && form.precoUnitario && (
+                      <p className="text-xs text-muted-foreground">
+                        Preço por unidade: {fmt(parseFloat(form.precoUnitario) / (FORMATO_MULTIPLICADOR[form.formato] || 1))}
+                        {" "}({FORMATO_MULTIPLICADOR[form.formato] || 1} unidades)
+                      </p>
+                    )}
                     <Button onClick={handleSubmit} className="w-full">{editingId ? "Salvar Alterações" : "Registrar Venda"}</Button>
                   </div>
                 </DialogContent>
@@ -237,7 +262,6 @@ const VendasPage = () => {
             </div>
           </div>
 
-          {/* Filters */}
           <div className="flex flex-wrap gap-3 border-b border-border p-4 bg-muted/30">
             <div className="flex items-center gap-1 text-sm text-muted-foreground"><Filter className="h-4 w-4" /> Filtros:</div>
             <Select value={filterCanal} onValueChange={setFilterCanal}>
@@ -245,7 +269,7 @@ const VendasPage = () => {
               <SelectContent><SelectItem value="all">Todos Canais</SelectItem>{CANAIS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
             </Select>
             <Select value={filterSku} onValueChange={setFilterSku}>
-              <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="SKU" /></SelectTrigger>
+              <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue placeholder="SKU" /></SelectTrigger>
               <SelectContent><SelectItem value="all">Todos SKUs</SelectItem>{SKUS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
             <Select value={filterFormato} onValueChange={setFilterFormato}>
@@ -260,17 +284,21 @@ const VendasPage = () => {
                 <TableRow>
                   <TableHead>Data</TableHead><TableHead>Canal</TableHead><TableHead>SKU</TableHead>
                   <TableHead>Formato</TableHead><TableHead className="text-right">Qtd</TableHead>
-                  <TableHead className="text-right">Preço Un.</TableHead><TableHead className="text-right">Receita</TableHead>
+                  <TableHead className="text-right">Unidades</TableHead>
+                  <TableHead className="text-right">Preço Total</TableHead>
+                  <TableHead className="text-right">Preço/Un.</TableHead>
                   <TableHead className="text-right">Custo</TableHead><TableHead className="text-right">Lucro</TableHead>
                   <TableHead className="text-right">Margem</TableHead><TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredRecords.map(r => {
+                  const unidades = getUnidadesReais(r);
                   const receita = r.quantidade * r.precoUnitario;
-                  const custo = r.quantidade * CONFIG.custoUnitario;
+                  const custo = unidades * CONFIG.custoUnitario;
                   const lucro = receita - custo;
                   const m = receita ? (lucro / receita) * 100 : 0;
+                  const precoUn = getPrecoUnitarioReal(r);
                   return (
                     <TableRow key={r.id} className="transition-colors hover:bg-accent/30">
                       <TableCell>{r.data}</TableCell>
@@ -283,8 +311,9 @@ const VendasPage = () => {
                       </TableCell>
                       <TableCell>{r.formato}</TableCell>
                       <TableCell className="text-right">{r.quantidade}</TableCell>
-                      <TableCell className="text-right">{fmt(r.precoUnitario)}</TableCell>
-                      <TableCell className="text-right font-medium">{fmt(receita)}</TableCell>
+                      <TableCell className="text-right font-medium">{unidades}</TableCell>
+                      <TableCell className="text-right">{fmt(receita)}</TableCell>
+                      <TableCell className="text-right">{fmt(precoUn)}</TableCell>
                       <TableCell className="text-right">{fmt(custo)}</TableCell>
                       <TableCell className="text-right font-medium text-emerald-600">{fmt(lucro)}</TableCell>
                       <TableCell className="text-right">

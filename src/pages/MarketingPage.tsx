@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Megaphone, Users, TrendingUp } from "lucide-react";
+import { Plus, Megaphone, Users, TrendingUp, Trash2, Pencil, Filter } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import KpiCard from "@/components/KpiCard";
 import { Button } from "@/components/ui/button";
@@ -9,17 +9,30 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { MarketingRecord, fetchMarketing, insertMarketing, SKUS, TIPOS_MARKETING, CONFIG } from "@/lib/store";
+import { MarketingRecord, fetchMarketing, insertMarketing, updateMarketing, deleteMarketing, insertEstoque, SKUS, TIPOS_MARKETING, CONFIG } from "@/lib/store";
+import { useMemo } from "react";
 
 const MarketingPage = () => {
   const [records, setRecords] = useState<MarketingRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ data: "", nome: "", tipo: "", sku: "", qtdEnviada: "", canalOrigem: "", vendasGeradas: "", seguidoresGerados: "", observacoes: "" });
+
+  const [filterTipo, setFilterTipo] = useState<string>("all");
+  const [filterSku, setFilterSku] = useState<string>("all");
 
   useEffect(() => {
     fetchMarketing().then(d => { setRecords(d); setLoading(false); }).catch(() => { toast.error("Erro ao carregar marketing"); setLoading(false); });
   }, []);
+
+  const filteredRecords = useMemo(() => {
+    return records.filter(r => {
+      if (filterTipo !== "all" && r.tipo !== filterTipo) return false;
+      if (filterSku !== "all" && r.sku !== filterSku) return false;
+      return true;
+    });
+  }, [records, filterTipo, filterSku]);
 
   const totalEnviado = records.reduce((a, r) => a + r.qtdEnviada, 0);
   const custoTotal = totalEnviado * CONFIG.custoUnitario;
@@ -37,16 +50,53 @@ const MarketingPage = () => {
       toast.error("Preencha os campos obrigatórios"); return;
     }
     try {
-      const newRecord = await insertMarketing({
+      const recordData = {
         data: form.data, nome: form.nome, tipo: form.tipo, sku: form.sku,
         qtdEnviada: parseInt(form.qtdEnviada), canalOrigem: form.canalOrigem,
         vendasGeradas: parseInt(form.vendasGeradas) || 0,
         seguidoresGerados: parseInt(form.seguidoresGerados) || 0, observacoes: form.observacoes,
-      });
-      setRecords(prev => [...prev, newRecord]);
+      };
+
+      if (editingId) {
+        await updateMarketing(editingId, recordData);
+        setRecords(prev => prev.map(r => r.id === editingId ? { ...r, ...recordData } : r));
+        toast.success("Ação atualizada!");
+      } else {
+        const newRecord = await insertMarketing(recordData);
+        setRecords(prev => [...prev, newRecord]);
+        // Registrar saída no estoque automaticamente
+        try {
+          await insertEstoque({
+            data: form.data, tipo: "Saída", categoria: "Marketing",
+            canal: "", sku: form.sku, quantidade: parseInt(form.qtdEnviada),
+            observacoes: `Marketing - ${form.tipo} - ${form.nome}`,
+          });
+        } catch { /* silently fail stock update */ }
+        toast.success("Ação registrada!");
+      }
       setForm({ data: "", nome: "", tipo: "", sku: "", qtdEnviada: "", canalOrigem: "", vendasGeradas: "", seguidoresGerados: "", observacoes: "" });
-      setOpen(false); toast.success("Ação registrada!");
+      setEditingId(null);
+      setOpen(false);
     } catch { toast.error("Erro ao salvar"); }
+  };
+
+  const handleEdit = (r: MarketingRecord) => {
+    setEditingId(r.id);
+    setForm({
+      data: r.data, nome: r.nome, tipo: r.tipo, sku: r.sku,
+      qtdEnviada: String(r.qtdEnviada), canalOrigem: r.canalOrigem,
+      vendasGeradas: String(r.vendasGeradas), seguidoresGerados: String(r.seguidoresGerados),
+      observacoes: r.observacoes,
+    });
+    setOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteMarketing(id);
+      setRecords(prev => prev.filter(r => r.id !== id));
+      toast.success("Ação excluída!");
+    } catch { toast.error("Erro ao excluir"); }
   };
 
   const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -55,7 +105,7 @@ const MarketingPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader title="Marketing" subtitle="Influencers, UGC e parcerias" />
+      <PageHeader title="Marketing" subtitle="Influencers, UGC, eventos e parcerias" />
       <div className="mx-auto max-w-7xl px-6 py-8 space-y-8 animate-fade-in">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <KpiCard label="Unidades Enviadas" value={`${totalEnviado}`} icon={Megaphone} variant="primary" />
@@ -81,10 +131,10 @@ const MarketingPage = () => {
         <div className="rounded-lg border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border p-4">
             <h3 className="font-display font-semibold">Ações de Marketing</h3>
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditingId(null); setForm({ data: "", nome: "", tipo: "", sku: "", qtdEnviada: "", canalOrigem: "", vendasGeradas: "", seguidoresGerados: "", observacoes: "" }); } }}>
               <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Nova Ação</Button></DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>Registrar Ação de Marketing</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{editingId ? "Editar Ação" : "Registrar Ação de Marketing"}</DialogTitle></DialogHeader>
                 <div className="space-y-3 pt-2 max-h-[60vh] overflow-y-auto">
                   <Input type="date" value={form.data} onChange={e => setForm({ ...form, data: e.target.value })} />
                   <Input placeholder="Nome do influencer/parceiro" value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} />
@@ -101,11 +151,24 @@ const MarketingPage = () => {
                   <Input type="number" placeholder="Vendas geradas" value={form.vendasGeradas} onChange={e => setForm({ ...form, vendasGeradas: e.target.value })} />
                   <Input type="number" placeholder="Seguidores gerados" value={form.seguidoresGerados} onChange={e => setForm({ ...form, seguidoresGerados: e.target.value })} />
                   <Input placeholder="Observações" value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} />
-                  <Button onClick={handleSubmit} className="w-full">Registrar</Button>
+                  <Button onClick={handleSubmit} className="w-full">{editingId ? "Salvar Alterações" : "Registrar"}</Button>
                 </div>
               </DialogContent>
             </Dialog>
           </div>
+
+          <div className="flex flex-wrap gap-3 border-b border-border p-4 bg-muted/30">
+            <div className="flex items-center gap-1 text-sm text-muted-foreground"><Filter className="h-4 w-4" /> Filtros:</div>
+            <Select value={filterTipo} onValueChange={setFilterTipo}>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent><SelectItem value="all">Todos Tipos</SelectItem>{TIPOS_MARKETING.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={filterSku} onValueChange={setFilterSku}>
+              <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue placeholder="SKU" /></SelectTrigger>
+              <SelectContent><SelectItem value="all">Todos SKUs</SelectItem>{SKUS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -114,11 +177,11 @@ const MarketingPage = () => {
                   <TableHead>SKU</TableHead><TableHead className="text-right">Enviado</TableHead>
                   <TableHead className="text-right">Custo</TableHead><TableHead className="text-right">Vendas</TableHead>
                   <TableHead className="text-right">ROI</TableHead><TableHead className="text-right">Seguidores</TableHead>
-                  <TableHead>Obs</TableHead>
+                  <TableHead>Obs</TableHead><TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {records.map(r => {
+                {filteredRecords.map(r => {
                   const custo = r.qtdEnviada * CONFIG.custoUnitario;
                   const roiVal = custo ? ((r.vendasGeradas * CONFIG.custoUnitario - custo) / custo * 100) : 0;
                   return (
@@ -134,7 +197,17 @@ const MarketingPage = () => {
                         <span className={`text-xs font-medium ${roiVal >= 0 ? "text-emerald-600" : "text-destructive"}`}>{roiVal.toFixed(0)}%</span>
                       </TableCell>
                       <TableCell className="text-right">{r.seguidoresGerados}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{r.observacoes}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[120px] truncate">{r.observacoes}</TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(r)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDelete(r.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
