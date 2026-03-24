@@ -248,14 +248,15 @@ export async function fetchFinanceiro(): Promise<FinanceiroRecord[]> {
 }
 
 export async function insertFinanceiro(record: Omit<FinanceiroRecord, "id">): Promise<FinanceiroRecord> {
-  const { data, error } = await supabase.from("financeiro").insert({
+  const insertData: Record<string, unknown> = {
     data: record.data, tipo: record.tipo, descricao: record.descricao, sku: record.sku,
     quantidade: record.quantidade, custo_unitario: record.custoUnitario,
     frete: record.frete, custo_total: record.custoTotal,
     preco_venda: record.precoVenda, markup: record.markup,
     receita: record.receita, lucro_bruto: record.lucroBruto,
     observacoes: record.observacoes,
-  } as Record<string, unknown>).select().single();
+  };
+  const { data, error } = await supabase.from("financeiro").insert([insertData as never]).select().single();
   if (error) throw error;
   const r = data as Record<string, unknown>;
   return {
