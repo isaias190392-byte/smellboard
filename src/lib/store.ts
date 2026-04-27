@@ -168,19 +168,20 @@ export async function fetchVendas(): Promise<VendaRecord[]> {
   return (data || []).map(r => ({
     id: r.id, data: r.data, canal: r.canal, sku: r.sku,
     quantidade: r.quantidade, precoTotal: Number(r.preco_unitario),
+    ...auditFields(r as Record<string, unknown>),
   }));
 }
 
-export async function insertVenda(record: Omit<VendaRecord, "id">): Promise<VendaRecord> {
+export async function insertVenda(record: Omit<VendaRecord, "id" | "createdBy" | "updatedBy">): Promise<VendaRecord> {
   const { data, error } = await supabase.from("vendas").insert({
     data: record.data, canal: record.canal, sku: record.sku,
     quantidade: record.quantidade, preco_unitario: record.precoTotal,
   } as never).select().single();
   if (error) throw error;
-  return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, quantidade: data.quantidade, precoTotal: Number(data.preco_unitario) };
+  return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, quantidade: data.quantidade, precoTotal: Number(data.preco_unitario), ...auditFields(data as Record<string, unknown>) };
 }
 
-export async function updateVenda(id: string, record: Partial<Omit<VendaRecord, "id">>): Promise<void> {
+export async function updateVenda(id: string, record: Partial<Omit<VendaRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
   const updateData: Record<string, unknown> = {};
   if (record.data !== undefined) updateData.data = record.data;
   if (record.canal !== undefined) updateData.canal = record.canal;
@@ -202,10 +203,11 @@ export async function fetchMarketing(): Promise<MarketingRecord[]> {
   return (data || []).map(r => ({
     id: r.id, data: r.data, nome: r.nome, tipo: r.tipo, sku: r.sku,
     qtdEnviada: r.qtd_enviada, vendasGeradas: r.vendas_geradas, observacoes: r.observacoes,
+    ...auditFields(r as Record<string, unknown>),
   }));
 }
 
-export async function insertMarketing(record: Omit<MarketingRecord, "id">): Promise<MarketingRecord> {
+export async function insertMarketing(record: Omit<MarketingRecord, "id" | "createdBy" | "updatedBy">): Promise<MarketingRecord> {
   const { data, error } = await supabase.from("marketing").insert({
     data: record.data, nome: record.nome, tipo: record.tipo, sku: record.sku,
     qtd_enviada: record.qtdEnviada, canal_origem: "",
@@ -215,10 +217,11 @@ export async function insertMarketing(record: Omit<MarketingRecord, "id">): Prom
   return {
     id: data.id, data: data.data, nome: data.nome, tipo: data.tipo, sku: data.sku,
     qtdEnviada: data.qtd_enviada, vendasGeradas: data.vendas_geradas, observacoes: data.observacoes,
+    ...auditFields(data as Record<string, unknown>),
   };
 }
 
-export async function updateMarketing(id: string, record: Partial<Omit<MarketingRecord, "id">>): Promise<void> {
+export async function updateMarketing(id: string, record: Partial<Omit<MarketingRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
   const updateData: Record<string, unknown> = {};
   if (record.data !== undefined) updateData.data = record.data;
   if (record.nome !== undefined) updateData.nome = record.nome;
