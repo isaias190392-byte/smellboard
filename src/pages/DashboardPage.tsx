@@ -3,7 +3,7 @@ import PageHeader from "@/components/PageHeader";
 import KpiCard from "@/components/KpiCard";
 import { DollarSign, TrendingUp, Boxes, ShoppingCart, Megaphone } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from "recharts";
-import { fetchEstoque, fetchVendas, fetchMarketing, calcSaldoEstoque, calcSaldoPorSku, SKUS, CANAIS, CONFIG, SKU_COLORS, EstoqueRecord, VendaRecord, MarketingRecord } from "@/lib/store";
+import { fetchEstoque, fetchVendas, fetchMarketing, calcSaldoEstoque, calcSaldoPorSku, SKUS_UNITARIOS, CANAIS, CONFIG, SKU_COLORS, EstoqueRecord, VendaRecord, MarketingRecord, getUnidadesReais } from "@/lib/store";
 
 const COLORS = ["#4F028B", "#DC2626", "#EAB308", "#2563EB"];
 
@@ -24,37 +24,37 @@ const DashboardPage = () => {
   const saldo = calcSaldoEstoque(estoque);
   const saldoPorSku = calcSaldoPorSku(estoque);
   const totalProduzido = estoque.filter(r => r.tipo === "Entrada").reduce((a, r) => a + r.quantidade, 0);
-  const totalVendido = vendas.reduce((a, v) => a + v.quantidade, 0);
+  const totalVendido = vendas.reduce((a, v) => a + getUnidadesReais(v.sku, v.quantidade), 0);
   const totalDoado = estoque.filter(r => r.tipo === "Saída" && r.categoria === "Doação").reduce((a, r) => a + r.quantidade, 0);
-  const receitaTotal = vendas.reduce((a, v) => a + v.quantidade * v.precoUnitario, 0);
-  const custoTotal = vendas.reduce((a, v) => a + v.quantidade * CONFIG.custoUnitario, 0);
+  const receitaTotal = vendas.reduce((a, v) => a + v.precoTotal, 0);
+  const custoTotal = vendas.reduce((a, v) => a + getUnidadesReais(v.sku, v.quantidade) * CONFIG.custoUnitario, 0);
   const lucroTotal = receitaTotal - custoTotal;
   const margem = receitaTotal ? (lucroTotal / receitaTotal) * 100 : 0;
-  const mktCusto = marketing.reduce((a, r) => a + r.qtdEnviada * CONFIG.custoUnitario, 0);
+  const mktCusto = marketing.reduce((a, r) => a + getUnidadesReais(r.sku, r.qtdEnviada) * CONFIG.custoUnitario, 0);
   const cac = totalVendido ? mktCusto / totalVendido : 0;
   const mktPct = totalProduzido ? (estoque.filter(r => r.tipo === "Saída" && r.categoria === "Marketing").reduce((a, r) => a + r.quantidade, 0) / totalProduzido * 100) : 0;
 
   const receitaPorCanal = CANAIS.map(c => ({
     name: c.includes("(") ? c.split("(")[0].trim() : c,
-    value: vendas.filter(v => v.canal === c).reduce((a, v) => a + v.quantidade * v.precoUnitario, 0),
+    value: vendas.filter(v => v.canal === c).reduce((a, v) => a + v.precoTotal, 0),
   })).filter(d => d.value > 0);
 
   const margemPorCanal = CANAIS.map(c => {
-    const rec = vendas.filter(v => v.canal === c).reduce((a, v) => a + v.quantidade * v.precoUnitario, 0);
-    const cst = vendas.filter(v => v.canal === c).reduce((a, v) => a + v.quantidade * CONFIG.custoUnitario, 0);
+    const rec = vendas.filter(v => v.canal === c).reduce((a, v) => a + v.precoTotal, 0);
+    const cst = vendas.filter(v => v.canal === c).reduce((a, v) => a + getUnidadesReais(v.sku, v.quantidade) * CONFIG.custoUnitario, 0);
     return { name: c.includes("(") ? c.split("(")[0].trim() : c, margem: rec ? ((rec - cst) / rec) * 100 : 0 };
   }).filter(d => d.margem > 0);
 
-  const vendasPorSku = SKUS.map(s => ({
+  const vendasPorSku = SKUS_UNITARIOS.map(s => ({
     name: s,
-    qty: vendas.filter(v => v.sku === s).reduce((a, v) => a + v.quantidade, 0),
+    qty: vendas.reduce((a, v) => a + (getUnidadesReais(v.sku, v.quantidade) && (v.sku === s ? getUnidadesReais(v.sku, v.quantidade) : 0)), 0),
   })).sort((a, b) => b.qty - a.qty);
 
   const dailyMap: Record<string, number> = {};
-  vendas.forEach(v => { dailyMap[v.data] = (dailyMap[v.data] || 0) + v.quantidade * v.precoUnitario; });
+  vendas.forEach(v => { dailyMap[v.data] = (dailyMap[v.data] || 0) + v.precoTotal; });
   const dailyData = Object.entries(dailyMap).sort().map(([data, receita]) => ({ data: data.slice(5), receita }));
 
-  const canalReceitas = CANAIS.map(c => ({ canal: c, receita: vendas.filter(v => v.canal === c).reduce((a, v) => a + v.quantidade * v.precoUnitario, 0) }));
+  const canalReceitas = CANAIS.map(c => ({ canal: c, receita: vendas.filter(v => v.canal === c).reduce((a, v) => a + v.precoTotal, 0) }));
   const melhorCanal = canalReceitas.sort((a, b) => b.receita - a.receita)[0];
   const melhorSku = vendasPorSku[0];
 
@@ -153,7 +153,7 @@ const DashboardPage = () => {
         <div className="rounded-lg border border-border bg-card p-6">
           <h3 className="font-display font-semibold mb-4">Estoque Atual por Fragrância</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
-            {SKUS.map((sku) => {
+            {SKUS_UNITARIOS.map((sku) => {
               const s = saldoPorSku[sku] || 0;
               const pct = totalProduzido ? (s / totalProduzido) * 100 : 0;
               return (
