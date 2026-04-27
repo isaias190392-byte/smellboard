@@ -138,8 +138,8 @@ export async function fetchVendas(): Promise<VendaRecord[]> {
 export async function insertVenda(record: Omit<VendaRecord, "id">): Promise<VendaRecord> {
   const { data, error } = await supabase.from("vendas").insert({
     data: record.data, canal: record.canal, sku: record.sku,
-    formato: "", quantidade: record.quantidade, preco_unitario: record.precoTotal,
-  }).select().single();
+    quantidade: record.quantidade, preco_unitario: record.precoTotal,
+  } as never).select().single();
   if (error) throw error;
   return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, quantidade: data.quantidade, precoTotal: Number(data.preco_unitario) };
 }
