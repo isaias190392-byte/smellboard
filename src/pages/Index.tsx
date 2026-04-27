@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { Package, ShoppingCart, Megaphone, BarChart3, TrendingUp, DollarSign, Boxes, Calculator } from "lucide-react";
 import DepartmentCard from "@/components/DepartmentCard";
 import { fetchEstoque, fetchVendas, calcSaldoEstoque, CONFIG, EstoqueRecord, VendaRecord, getUnidadesReais } from "@/lib/store";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
 import logo from "@/assets/smellgo-logo.png";
 
 const Index = () => {
   const [estoque, setEstoque] = useState<EstoqueRecord[]>([]);
   const [vendas, setVendas] = useState<VendaRecord[]>([]);
+  const { profile, signOut } = useAuth();
 
   useEffect(() => {
     fetchEstoque().then(setEstoque).catch(() => {});
@@ -24,6 +27,10 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <div className="gradient-dark text-primary-foreground">
         <div className="mx-auto max-w-7xl px-6 py-16 text-center">
+          <div className="mb-6 flex items-center justify-end gap-3">
+            <span className="text-sm opacity-80">{profile?.displayName}</span>
+            <Button variant="secondary" size="sm" onClick={signOut}>Sair</Button>
+          </div>
           <img src={logo} alt="Smell & Go" className="mx-auto h-16 mb-6 brightness-0 invert" />
           <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">Painel de Controle</h1>
           <p className="mt-3 text-lg opacity-80">Sistema operacional e financeiro — Smell & Go</p>
