@@ -262,15 +262,35 @@ export async function deleteFinanceiro(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export function decomporSku(sku: string, qtd: number): Record<string, number> {
+  if (KIT_COMPOSICAO[sku]) {
+    const result: Record<string, number> = {};
+    for (const [base, n] of Object.entries(KIT_COMPOSICAO[sku])) result[base] = n * qtd;
+    return result;
+  }
+  return { [sku]: qtd };
+}
+
+export function getUnidadesReais(sku: string, qtd: number): number {
+  return Object.values(decomporSku(sku, qtd)).reduce((acc, n) => acc + n, 0);
+}
+
+export function validarEstoque(sku: string, qtd: number, saldo: Record<string, number>): string | null {
+  const faltas = Object.entries(decomporSku(sku, qtd))
+    .filter(([base, n]) => (saldo[base] || 0) < n)
+    .map(([base, n]) => `${base}: precisa ${n}, tem ${saldo[base] || 0}`);
+  return faltas.length ? `Estoque insuficiente:\n${faltas.join("\n")}` : null;
+}
+
 export function calcSaldoEstoque(records: EstoqueRecord[]): number {
-  return records.reduce((acc, r) => acc + (r.tipo === "Entrada" ? r.quantidade : -r.quantidade), 0);
+  return Object.values(calcSaldoPorSku(records)).reduce((acc, n) => acc + n, 0);
 }
 
 export function calcSaldoPorSku(records: EstoqueRecord[]): Record<string, number> {
-  const saldo: Record<string, number> = {};
+  const saldo: Record<string, number> = Object.fromEntries(SKUS_UNITARIOS.map(sku => [sku, 0]));
   for (const r of records) {
-    if (!saldo[r.sku]) saldo[r.sku] = 0;
-    saldo[r.sku] += r.tipo === "Entrada" ? r.quantidade : -r.quantidade;
+    const unidades = decomporSku(r.sku, r.quantidade);
+    for (const [sku, qtd] of Object.entries(unidades)) saldo[sku] = (saldo[sku] || 0) + (r.tipo === "Entrada" ? qtd : -qtd);
   }
   return saldo;
 }
