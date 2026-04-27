@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Package, ShoppingCart, Megaphone, BarChart3, TrendingUp, DollarSign, Boxes, Calculator } from "lucide-react";
 import DepartmentCard from "@/components/DepartmentCard";
-import { fetchEstoque, fetchVendas, calcSaldoEstoque, CONFIG, EstoqueRecord, VendaRecord, FORMATO_MULTIPLICADOR } from "@/lib/store";
+import { fetchEstoque, fetchVendas, calcSaldoEstoque, CONFIG, EstoqueRecord, VendaRecord, getUnidadesReais } from "@/lib/store";
 import logo from "@/assets/smellgo-logo.png";
 
 const Index = () => {
@@ -14,8 +14,8 @@ const Index = () => {
   }, []);
 
   const saldoEstoque = calcSaldoEstoque(estoque);
-  const receitaTotal = vendas.reduce((a, v) => a + v.quantidade * v.precoUnitario, 0);
-  const unidadesTotais = vendas.reduce((a, v) => a + v.quantidade * (FORMATO_MULTIPLICADOR[v.formato] || 1), 0);
+  const receitaTotal = vendas.reduce((a, v) => a + v.precoTotal, 0);
+  const unidadesTotais = vendas.reduce((a, v) => a + getUnidadesReais(v.sku, v.quantidade), 0);
   const lucroTotal = receitaTotal - unidadesTotais * CONFIG.custoUnitario;
 
   const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -45,7 +45,7 @@ const Index = () => {
       <div className="mx-auto max-w-7xl px-6 -mt-8 pb-16">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
           <DepartmentCard title="Estoque" description="Entradas, saídas e saldo por SKU" icon={Package} path="/estoque" metric={`${saldoEstoque} un`} metricLabel="Saldo atual" />
-          <DepartmentCard title="Vendas" description="Registros de venda por canal e formato" icon={ShoppingCart} path="/vendas" metric={fmt(receitaTotal)} metricLabel="Receita total" />
+          <DepartmentCard title="Vendas" description="Registros de venda por canal e SKU" icon={ShoppingCart} path="/vendas" metric={fmt(receitaTotal)} metricLabel="Receita total" />
           <DepartmentCard title="Marketing" description="Influencers, UGC e parcerias" icon={Megaphone} path="/marketing" />
           <DepartmentCard title="Financeiro" description="Custos, markup e rentabilidade" icon={Calculator} path="/financeiro" />
           <DepartmentCard title="Dashboard" description="Indicadores estratégicos" icon={BarChart3} path="/dashboard" metric={`${((lucroTotal / (receitaTotal || 1)) * 100).toFixed(1)}%`} metricLabel="Margem média" />
