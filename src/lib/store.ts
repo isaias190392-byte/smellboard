@@ -1,62 +1,38 @@
 // Shared data store (Supabase-backed)
 import { supabase } from "@/integrations/supabase/client";
 
-export const SKUS = [
-  "INTENSE", "TEXAS", "SUNSET", "GARDEN", "BRISE",
-  "KIT VARIADO 12",
-  "KIT 12 INTENSE", "KIT 12 BRISE", "KIT 12 GARDEN", "KIT 12 SUNSET", "KIT 12 TEXAS",
-  "KIT 5 INTENSE", "KIT 5 BRISE", "KIT 5 GARDEN", "KIT 5 SUNSET", "KIT 5 TEXAS",
+export const SKUS_UNITARIOS = ["INTENSE", "TEXAS", "SUNSET", "GARDEN", "BRISE"] as const;
+
+export const SKUS_KITS = [
+  "KIT DEGUSTAÇÃO", "KIT VARIADO",
+  "KIT BRISE", "KIT INTENSE", "KIT TEXAS", "KIT SUNSET", "KIT GARDEN",
 ] as const;
+
+export const SKUS = [...SKUS_UNITARIOS, ...SKUS_KITS] as const;
 
 export const SKU_COLORS: Record<string, string> = {
   INTENSE: "#4F028B",
   TEXAS: "#DC2626",
   SUNSET: "#EAB308",
-  GARDEN: "#16A34A",
+  GARDEN: "#22C55E",
   BRISE: "#2563EB",
-  "KIT VARIADO 12": "#6B7280",
-  "KIT 12 INTENSE": "#4F028B",
-  "KIT 12 BRISE": "#2563EB",
-  "KIT 12 GARDEN": "#16A34A",
-  "KIT 12 SUNSET": "#EAB308",
-  "KIT 12 TEXAS": "#DC2626",
-  "KIT 5 INTENSE": "#7C3AED",
-  "KIT 5 BRISE": "#3B82F6",
-  "KIT 5 GARDEN": "#22C55E",
-  "KIT 5 SUNSET": "#F59E0B",
-  "KIT 5 TEXAS": "#EF4444",
 };
 
 // Composição dos kits em unidades individuais
 export const KIT_COMPOSICAO: Record<string, Record<string, number>> = {
-  "KIT VARIADO 12": { BRISE: 2, INTENSE: 2, TEXAS: 3, SUNSET: 2, GARDEN: 3 },
-  "KIT 12 INTENSE": { INTENSE: 12 },
-  "KIT 12 BRISE": { BRISE: 12 },
-  "KIT 12 GARDEN": { GARDEN: 12 },
-  "KIT 12 SUNSET": { SUNSET: 12 },
-  "KIT 12 TEXAS": { TEXAS: 12 },
-  "KIT 5 INTENSE": { INTENSE: 5 },
-  "KIT 5 BRISE": { BRISE: 5 },
-  "KIT 5 GARDEN": { GARDEN: 5 },
-  "KIT 5 SUNSET": { SUNSET: 5 },
-  "KIT 5 TEXAS": { TEXAS: 5 },
+  "KIT DEGUSTAÇÃO": { INTENSE: 1, TEXAS: 1, SUNSET: 1, GARDEN: 1, BRISE: 1 },
+  "KIT VARIADO": { INTENSE: 2, TEXAS: 2, SUNSET: 2, GARDEN: 3, BRISE: 3 },
+  "KIT BRISE": { BRISE: 12 },
+  "KIT INTENSE": { INTENSE: 12 },
+  "KIT TEXAS": { TEXAS: 12 },
+  "KIT SUNSET": { SUNSET: 12 },
+  "KIT GARDEN": { GARDEN: 12 },
 };
-
-// SKUs unitários (fragrâncias base)
-export const SKUS_UNITARIOS = ["INTENSE", "TEXAS", "SUNSET", "GARDEN", "BRISE"] as const;
 
 export const CANAIS = ["Mercado Livre", "Shopee", "Direto (WhatsApp/Instagram)", "B2B"] as const;
 export const CATEGORIAS = ["Venda", "Doação", "Marketing", "Teste", "Perda", "Compra"] as const;
-export const FORMATOS = ["Unitário", "Kit 5", "Kit 12"] as const;
 export const TIPOS_ESTOQUE = ["Entrada", "Saída"] as const;
 export const TIPOS_MARKETING = ["UGC", "Influencer", "Doação", "Evento"] as const;
-
-// Multiplicador por formato
-export const FORMATO_MULTIPLICADOR: Record<string, number> = {
-  "Unitário": 1,
-  "Kit 5": 5,
-  "Kit 12": 12,
-};
 
 export const CONFIG = {
   custoUnitario: 5.0,
@@ -85,9 +61,8 @@ export interface VendaRecord {
   data: string;
   canal: string;
   sku: string;
-  formato: string;
   quantidade: number;
-  precoUnitario: number;
+  precoTotal: number;
 }
 
 export interface MarketingRecord {
@@ -97,9 +72,7 @@ export interface MarketingRecord {
   tipo: string;
   sku: string;
   qtdEnviada: number;
-  canalOrigem: string;
   vendasGeradas: number;
-  seguidoresGerados: number;
   observacoes: string;
 }
 
@@ -153,22 +126,27 @@ export async function deleteEstoque(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function deleteEstoqueByToken(token: string): Promise<void> {
+  const { error } = await supabase.from("estoque").delete().ilike("observacoes", `%${token}%`);
+  if (error) throw error;
+}
+
 export async function fetchVendas(): Promise<VendaRecord[]> {
   const { data, error } = await supabase.from("vendas").select("*").order("data", { ascending: true });
   if (error) throw error;
   return (data || []).map(r => ({
     id: r.id, data: r.data, canal: r.canal, sku: r.sku,
-    formato: r.formato, quantidade: r.quantidade, precoUnitario: Number(r.preco_unitario),
+    quantidade: r.quantidade, precoTotal: Number(r.preco_unitario),
   }));
 }
 
 export async function insertVenda(record: Omit<VendaRecord, "id">): Promise<VendaRecord> {
   const { data, error } = await supabase.from("vendas").insert({
     data: record.data, canal: record.canal, sku: record.sku,
-    formato: record.formato, quantidade: record.quantidade, preco_unitario: record.precoUnitario,
-  }).select().single();
+    quantidade: record.quantidade, preco_unitario: record.precoTotal,
+  } as never).select().single();
   if (error) throw error;
-  return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, formato: data.formato, quantidade: data.quantidade, precoUnitario: Number(data.preco_unitario) };
+  return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, quantidade: data.quantidade, precoTotal: Number(data.preco_unitario) };
 }
 
 export async function updateVenda(id: string, record: Partial<Omit<VendaRecord, "id">>): Promise<void> {
@@ -176,9 +154,8 @@ export async function updateVenda(id: string, record: Partial<Omit<VendaRecord, 
   if (record.data !== undefined) updateData.data = record.data;
   if (record.canal !== undefined) updateData.canal = record.canal;
   if (record.sku !== undefined) updateData.sku = record.sku;
-  if (record.formato !== undefined) updateData.formato = record.formato;
   if (record.quantidade !== undefined) updateData.quantidade = record.quantidade;
-  if (record.precoUnitario !== undefined) updateData.preco_unitario = record.precoUnitario;
+  if (record.precoTotal !== undefined) updateData.preco_unitario = record.precoTotal;
   const { error } = await supabase.from("vendas").update(updateData).eq("id", id);
   if (error) throw error;
 }
@@ -193,22 +170,20 @@ export async function fetchMarketing(): Promise<MarketingRecord[]> {
   if (error) throw error;
   return (data || []).map(r => ({
     id: r.id, data: r.data, nome: r.nome, tipo: r.tipo, sku: r.sku,
-    qtdEnviada: r.qtd_enviada, canalOrigem: r.canal_origem,
-    vendasGeradas: r.vendas_geradas, seguidoresGerados: r.seguidores_gerados, observacoes: r.observacoes,
+    qtdEnviada: r.qtd_enviada, vendasGeradas: r.vendas_geradas, observacoes: r.observacoes,
   }));
 }
 
 export async function insertMarketing(record: Omit<MarketingRecord, "id">): Promise<MarketingRecord> {
   const { data, error } = await supabase.from("marketing").insert({
     data: record.data, nome: record.nome, tipo: record.tipo, sku: record.sku,
-    qtd_enviada: record.qtdEnviada, canal_origem: record.canalOrigem,
-    vendas_geradas: record.vendasGeradas, seguidores_gerados: record.seguidoresGerados, observacoes: record.observacoes,
+    qtd_enviada: record.qtdEnviada, canal_origem: "",
+    vendas_geradas: record.vendasGeradas, seguidores_gerados: 0, observacoes: record.observacoes,
   }).select().single();
   if (error) throw error;
   return {
     id: data.id, data: data.data, nome: data.nome, tipo: data.tipo, sku: data.sku,
-    qtdEnviada: data.qtd_enviada, canalOrigem: data.canal_origem,
-    vendasGeradas: data.vendas_geradas, seguidoresGerados: data.seguidores_gerados, observacoes: data.observacoes,
+    qtdEnviada: data.qtd_enviada, vendasGeradas: data.vendas_geradas, observacoes: data.observacoes,
   };
 }
 
@@ -219,9 +194,7 @@ export async function updateMarketing(id: string, record: Partial<Omit<Marketing
   if (record.tipo !== undefined) updateData.tipo = record.tipo;
   if (record.sku !== undefined) updateData.sku = record.sku;
   if (record.qtdEnviada !== undefined) updateData.qtd_enviada = record.qtdEnviada;
-  if (record.canalOrigem !== undefined) updateData.canal_origem = record.canalOrigem;
   if (record.vendasGeradas !== undefined) updateData.vendas_geradas = record.vendasGeradas;
-  if (record.seguidoresGerados !== undefined) updateData.seguidores_gerados = record.seguidoresGerados;
   if (record.observacoes !== undefined) updateData.observacoes = record.observacoes;
   const { error } = await supabase.from("marketing").update(updateData).eq("id", id);
   if (error) throw error;
@@ -294,15 +267,40 @@ export async function deleteFinanceiro(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export function decomporSku(sku: string, qtd: number): Record<string, number> {
+  if (KIT_COMPOSICAO[sku]) {
+    const result: Record<string, number> = {};
+    for (const [base, n] of Object.entries(KIT_COMPOSICAO[sku])) result[base] = n * qtd;
+    return result;
+  }
+  return { [sku]: qtd };
+}
+
+export function getUnidadesReais(sku: string, qtd: number): number {
+  return Object.values(decomporSku(sku, qtd)).reduce((acc, n) => acc + n, 0);
+}
+
+export function getComposicaoTexto(sku: string): string | null {
+  if (!KIT_COMPOSICAO[sku]) return null;
+  return `1 ${sku} = ${Object.entries(KIT_COMPOSICAO[sku]).map(([base, qtd]) => `${qtd} ${base}`).join(" + ")}`;
+}
+
+export function validarEstoque(sku: string, qtd: number, saldo: Record<string, number>): string | null {
+  const faltas = Object.entries(decomporSku(sku, qtd))
+    .filter(([base, n]) => (saldo[base] || 0) < n)
+    .map(([base, n]) => `${base}: precisa ${n}, tem ${saldo[base] || 0}`);
+  return faltas.length ? `Estoque insuficiente:\n${faltas.join("\n")}` : null;
+}
+
 export function calcSaldoEstoque(records: EstoqueRecord[]): number {
-  return records.reduce((acc, r) => acc + (r.tipo === "Entrada" ? r.quantidade : -r.quantidade), 0);
+  return Object.values(calcSaldoPorSku(records)).reduce((acc, n) => acc + n, 0);
 }
 
 export function calcSaldoPorSku(records: EstoqueRecord[]): Record<string, number> {
-  const saldo: Record<string, number> = {};
+  const saldo: Record<string, number> = Object.fromEntries(SKUS_UNITARIOS.map(sku => [sku, 0]));
   for (const r of records) {
-    if (!saldo[r.sku]) saldo[r.sku] = 0;
-    saldo[r.sku] += r.tipo === "Entrada" ? r.quantidade : -r.quantidade;
+    const unidades = decomporSku(r.sku, r.quantidade);
+    for (const [sku, qtd] of Object.entries(unidades)) saldo[sku] = (saldo[sku] || 0) + (r.tipo === "Entrada" ? qtd : -qtd);
   }
   return saldo;
 }

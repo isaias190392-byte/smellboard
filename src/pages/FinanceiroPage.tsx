@@ -92,7 +92,7 @@ const FinanceiroPage = () => {
       }
       setForm({ data: "", tipo: "", descricao: "", sku: "", quantidade: "", custoUnitario: "", frete: "0", precoVenda: "", observacoes: "" });
       setEditingId(null); setOpen(false);
-    } catch { toast.error("Erro ao salvar"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
   };
 
   const handleEdit = (r: FinanceiroRecord) => {
@@ -106,8 +106,9 @@ const FinanceiroPage = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este registro?")) return;
     try { await deleteFinanceiro(id); setRecords(prev => prev.filter(r => r.id !== id)); toast.success("Registro excluído!"); }
-    catch { toast.error("Erro ao excluir"); }
+    catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
   };
 
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;

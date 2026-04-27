@@ -1,0 +1,1 @@
+ALTER TABLE public.vendas DROP COLUMN IF EXISTS formato;

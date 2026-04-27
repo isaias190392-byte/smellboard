@@ -160,7 +160,6 @@ export type Database = {
           canal: string
           created_at: string
           data: string
-          formato: string
           id: string
           preco_unitario: number
           quantidade: number
@@ -171,7 +170,6 @@ export type Database = {
           canal: string
           created_at?: string
           data: string
-          formato: string
           id?: string
           preco_unitario: number
           quantidade: number
@@ -182,7 +180,6 @@ export type Database = {
           canal?: string
           created_at?: string
           data?: string
-          formato?: string
           id?: string
           preco_unitario?: number
           quantidade?: number
