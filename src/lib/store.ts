@@ -126,6 +126,11 @@ export async function deleteEstoque(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function deleteEstoqueByToken(token: string): Promise<void> {
+  const { error } = await supabase.from("estoque").delete().ilike("observacoes", `%${token}%`);
+  if (error) throw error;
+}
+
 export async function fetchVendas(): Promise<VendaRecord[]> {
   const { data, error } = await supabase.from("vendas").select("*").order("data", { ascending: true });
   if (error) throw error;
@@ -273,6 +278,11 @@ export function decomporSku(sku: string, qtd: number): Record<string, number> {
 
 export function getUnidadesReais(sku: string, qtd: number): number {
   return Object.values(decomporSku(sku, qtd)).reduce((acc, n) => acc + n, 0);
+}
+
+export function getComposicaoTexto(sku: string): string | null {
+  if (!KIT_COMPOSICAO[sku]) return null;
+  return `1 ${sku} = ${Object.entries(KIT_COMPOSICAO[sku]).map(([base, qtd]) => `${qtd} ${base}`).join(" + ")}`;
 }
 
 export function validarEstoque(sku: string, qtd: number, saldo: Record<string, number>): string | null {
