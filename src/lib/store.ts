@@ -1,62 +1,38 @@
 // Shared data store (Supabase-backed)
 import { supabase } from "@/integrations/supabase/client";
 
-export const SKUS = [
-  "INTENSE", "TEXAS", "SUNSET", "GARDEN", "BRISE",
-  "KIT VARIADO 12",
-  "KIT 12 INTENSE", "KIT 12 BRISE", "KIT 12 GARDEN", "KIT 12 SUNSET", "KIT 12 TEXAS",
-  "KIT 5 INTENSE", "KIT 5 BRISE", "KIT 5 GARDEN", "KIT 5 SUNSET", "KIT 5 TEXAS",
+export const SKUS_UNITARIOS = ["INTENSE", "TEXAS", "SUNSET", "GARDEN", "BRISE"] as const;
+
+export const SKUS_KITS = [
+  "KIT DEGUSTAÇÃO", "KIT VARIADO",
+  "KIT BRISE", "KIT INTENSE", "KIT TEXAS", "KIT SUNSET", "KIT GARDEN",
 ] as const;
+
+export const SKUS = [...SKUS_UNITARIOS, ...SKUS_KITS] as const;
 
 export const SKU_COLORS: Record<string, string> = {
   INTENSE: "#4F028B",
   TEXAS: "#DC2626",
   SUNSET: "#EAB308",
-  GARDEN: "#16A34A",
+  GARDEN: "#22C55E",
   BRISE: "#2563EB",
-  "KIT VARIADO 12": "#6B7280",
-  "KIT 12 INTENSE": "#4F028B",
-  "KIT 12 BRISE": "#2563EB",
-  "KIT 12 GARDEN": "#16A34A",
-  "KIT 12 SUNSET": "#EAB308",
-  "KIT 12 TEXAS": "#DC2626",
-  "KIT 5 INTENSE": "#7C3AED",
-  "KIT 5 BRISE": "#3B82F6",
-  "KIT 5 GARDEN": "#22C55E",
-  "KIT 5 SUNSET": "#F59E0B",
-  "KIT 5 TEXAS": "#EF4444",
 };
 
 // Composição dos kits em unidades individuais
 export const KIT_COMPOSICAO: Record<string, Record<string, number>> = {
-  "KIT VARIADO 12": { BRISE: 2, INTENSE: 2, TEXAS: 3, SUNSET: 2, GARDEN: 3 },
-  "KIT 12 INTENSE": { INTENSE: 12 },
-  "KIT 12 BRISE": { BRISE: 12 },
-  "KIT 12 GARDEN": { GARDEN: 12 },
-  "KIT 12 SUNSET": { SUNSET: 12 },
-  "KIT 12 TEXAS": { TEXAS: 12 },
-  "KIT 5 INTENSE": { INTENSE: 5 },
-  "KIT 5 BRISE": { BRISE: 5 },
-  "KIT 5 GARDEN": { GARDEN: 5 },
-  "KIT 5 SUNSET": { SUNSET: 5 },
-  "KIT 5 TEXAS": { TEXAS: 5 },
+  "KIT DEGUSTAÇÃO": { INTENSE: 1, TEXAS: 1, SUNSET: 1, GARDEN: 1, BRISE: 1 },
+  "KIT VARIADO": { INTENSE: 2, TEXAS: 2, SUNSET: 2, GARDEN: 3, BRISE: 3 },
+  "KIT BRISE": { BRISE: 12 },
+  "KIT INTENSE": { INTENSE: 12 },
+  "KIT TEXAS": { TEXAS: 12 },
+  "KIT SUNSET": { SUNSET: 12 },
+  "KIT GARDEN": { GARDEN: 12 },
 };
-
-// SKUs unitários (fragrâncias base)
-export const SKUS_UNITARIOS = ["INTENSE", "TEXAS", "SUNSET", "GARDEN", "BRISE"] as const;
 
 export const CANAIS = ["Mercado Livre", "Shopee", "Direto (WhatsApp/Instagram)", "B2B"] as const;
 export const CATEGORIAS = ["Venda", "Doação", "Marketing", "Teste", "Perda", "Compra"] as const;
-export const FORMATOS = ["Unitário", "Kit 5", "Kit 12"] as const;
 export const TIPOS_ESTOQUE = ["Entrada", "Saída"] as const;
 export const TIPOS_MARKETING = ["UGC", "Influencer", "Doação", "Evento"] as const;
-
-// Multiplicador por formato
-export const FORMATO_MULTIPLICADOR: Record<string, number> = {
-  "Unitário": 1,
-  "Kit 5": 5,
-  "Kit 12": 12,
-};
 
 export const CONFIG = {
   custoUnitario: 5.0,
