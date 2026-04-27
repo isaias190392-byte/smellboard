@@ -12,7 +12,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import {
   EstoqueRecord, fetchEstoque, insertEstoque, updateEstoque, deleteEstoque,
   calcSaldoEstoque, calcSaldoPorSku,
-  SKUS, SKUS_UNITARIOS, CANAIS, CATEGORIAS, TIPOS_ESTOQUE, CONFIG, SKU_COLORS
+  SKUS, SKUS_UNITARIOS, CANAIS, CATEGORIAS, TIPOS_ESTOQUE, CONFIG, SKU_COLORS, decomporSku, validarEstoque
 } from "@/lib/store";
 import { Package, TrendingDown, Boxes } from "lucide-react";
 
@@ -53,24 +53,30 @@ const EstoquePage = () => {
     if (!form.data || !form.tipo || !form.categoria || !form.sku || isNaN(qty) || qty <= 0) {
       toast.error("Preencha todos os campos obrigatórios"); return;
     }
-    if (form.tipo === "Saída" && !editingId) {
-      const skuSaldo = saldoPorSku[form.sku] || 0;
-      if (qty > skuSaldo) { toast.error(`Estoque insuficiente para ${form.sku}. Saldo: ${skuSaldo}`); return; }
+    if (form.tipo === "Entrada" && !SKUS_UNITARIOS.includes(form.sku as typeof SKUS_UNITARIOS[number])) {
+      toast.error("Entradas aceitam apenas SKUs unitários"); return;
     }
+    const saldoValidacao = { ...saldoPorSku };
+    if (editingId) {
+      const old = records.find(r => r.id === editingId);
+      if (old?.tipo === "Saída") saldoValidacao[old.sku] = (saldoValidacao[old.sku] || 0) + old.quantidade;
+    }
+    const erro = form.tipo === "Saída" ? validarEstoque(form.sku, qty, saldoValidacao) : null;
+    if (erro) { toast.error(erro); return; }
     try {
       if (editingId) {
         await updateEstoque(editingId, { data: form.data, tipo: form.tipo as "Entrada" | "Saída", categoria: form.categoria, canal: form.canal, sku: form.sku, quantidade: qty, observacoes: form.observacoes });
         setRecords(prev => prev.map(r => r.id === editingId ? { ...r, data: form.data, tipo: form.tipo as "Entrada" | "Saída", categoria: form.categoria, canal: form.canal, sku: form.sku, quantidade: qty, observacoes: form.observacoes } : r));
-        toast.success("Movimentação atualizada!");
       } else {
-        const newRecord = await insertEstoque({ data: form.data, tipo: form.tipo as "Entrada" | "Saída", categoria: form.categoria, canal: form.canal, sku: form.sku, quantidade: qty, observacoes: form.observacoes });
-        setRecords(prev => [...prev, newRecord]);
-        toast.success("Movimentação registrada!");
+        const unidades = form.tipo === "Saída" ? decomporSku(form.sku, qty) : { [form.sku]: qty };
+        const created = await Promise.all(Object.entries(unidades).map(([sku, quantidade]) => insertEstoque({ data: form.data, tipo: form.tipo as "Entrada" | "Saída", categoria: form.categoria, canal: form.canal, sku, quantidade, observacoes: form.observacoes || (sku !== form.sku ? `Decomposto de ${form.sku}` : "") })));
+        setRecords(prev => [...prev, ...created]);
       }
+      toast.success(editingId ? "Movimentação atualizada!" : "Movimentação registrada!");
       setForm({ data: "", tipo: "", categoria: "", canal: "", sku: "", quantidade: "", observacoes: "" });
       setEditingId(null);
       setOpen(false);
-    } catch { toast.error("Erro ao salvar"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
   };
 
   const handleEdit = (r: EstoqueRecord) => {
@@ -80,11 +86,12 @@ const EstoquePage = () => {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta movimentação?")) return;
     try {
       await deleteEstoque(id);
       setRecords(prev => prev.filter(r => r.id !== id));
       toast.success("Movimentação excluída!");
-    } catch { toast.error("Erro ao excluir"); }
+    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
   };
 
   const getStatusBadge = (sku: string) => {
@@ -166,7 +173,7 @@ const EstoquePage = () => {
                   </Select>
                   <Select value={form.sku} onValueChange={v => setForm({ ...form, sku: v })}>
                     <SelectTrigger><SelectValue placeholder="SKU" /></SelectTrigger>
-                    <SelectContent>{SKUS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                    <SelectContent>{(form.tipo === "Entrada" ? SKUS_UNITARIOS : SKUS).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                   </Select>
                   <Input type="number" min="1" placeholder="Quantidade" value={form.quantidade} onChange={e => setForm({ ...form, quantidade: e.target.value })} />
                   <Input placeholder="Observações (opcional)" value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} />
@@ -206,7 +213,8 @@ const EstoquePage = () => {
               </TableHeader>
               <TableBody>
                 {filteredRecords.map((r) => {
-                  runningBalance += r.tipo === "Entrada" ? r.quantidade : -r.quantidade;
+                  const sortedUntilRecord = records.filter(item => item.data < r.data || (item.data === r.data && item.id <= r.id));
+                  const runningBalance = calcSaldoEstoque(sortedUntilRecord);
                   const valorTotal = r.quantidade * CONFIG.custoUnitario;
                   return (
                     <TableRow key={r.id} className="transition-colors hover:bg-accent/30">
