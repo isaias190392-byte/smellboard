@@ -165,22 +165,20 @@ export async function fetchMarketing(): Promise<MarketingRecord[]> {
   if (error) throw error;
   return (data || []).map(r => ({
     id: r.id, data: r.data, nome: r.nome, tipo: r.tipo, sku: r.sku,
-    qtdEnviada: r.qtd_enviada, canalOrigem: r.canal_origem,
-    vendasGeradas: r.vendas_geradas, seguidoresGerados: r.seguidores_gerados, observacoes: r.observacoes,
+    qtdEnviada: r.qtd_enviada, vendasGeradas: r.vendas_geradas, observacoes: r.observacoes,
   }));
 }
 
 export async function insertMarketing(record: Omit<MarketingRecord, "id">): Promise<MarketingRecord> {
   const { data, error } = await supabase.from("marketing").insert({
     data: record.data, nome: record.nome, tipo: record.tipo, sku: record.sku,
-    qtd_enviada: record.qtdEnviada, canal_origem: record.canalOrigem,
-    vendas_geradas: record.vendasGeradas, seguidores_gerados: record.seguidoresGerados, observacoes: record.observacoes,
+    qtd_enviada: record.qtdEnviada, canal_origem: "",
+    vendas_geradas: record.vendasGeradas, seguidores_gerados: 0, observacoes: record.observacoes,
   }).select().single();
   if (error) throw error;
   return {
     id: data.id, data: data.data, nome: data.nome, tipo: data.tipo, sku: data.sku,
-    qtdEnviada: data.qtd_enviada, canalOrigem: data.canal_origem,
-    vendasGeradas: data.vendas_geradas, seguidoresGerados: data.seguidores_gerados, observacoes: data.observacoes,
+    qtdEnviada: data.qtd_enviada, vendasGeradas: data.vendas_geradas, observacoes: data.observacoes,
   };
 }
 
@@ -191,9 +189,7 @@ export async function updateMarketing(id: string, record: Partial<Omit<Marketing
   if (record.tipo !== undefined) updateData.tipo = record.tipo;
   if (record.sku !== undefined) updateData.sku = record.sku;
   if (record.qtdEnviada !== undefined) updateData.qtd_enviada = record.qtdEnviada;
-  if (record.canalOrigem !== undefined) updateData.canal_origem = record.canalOrigem;
   if (record.vendasGeradas !== undefined) updateData.vendas_geradas = record.vendasGeradas;
-  if (record.seguidoresGerados !== undefined) updateData.seguidores_gerados = record.seguidoresGerados;
   if (record.observacoes !== undefined) updateData.observacoes = record.observacoes;
   const { error } = await supabase.from("marketing").update(updateData).eq("id", id);
   if (error) throw error;
