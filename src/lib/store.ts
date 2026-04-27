@@ -61,9 +61,8 @@ export interface VendaRecord {
   data: string;
   canal: string;
   sku: string;
-  formato: string;
   quantidade: number;
-  precoUnitario: number;
+  precoTotal: number;
 }
 
 export interface MarketingRecord {
@@ -73,9 +72,7 @@ export interface MarketingRecord {
   tipo: string;
   sku: string;
   qtdEnviada: number;
-  canalOrigem: string;
   vendasGeradas: number;
-  seguidoresGerados: number;
   observacoes: string;
 }
 
@@ -134,17 +131,17 @@ export async function fetchVendas(): Promise<VendaRecord[]> {
   if (error) throw error;
   return (data || []).map(r => ({
     id: r.id, data: r.data, canal: r.canal, sku: r.sku,
-    formato: r.formato, quantidade: r.quantidade, precoUnitario: Number(r.preco_unitario),
+    quantidade: r.quantidade, precoTotal: Number(r.preco_unitario),
   }));
 }
 
 export async function insertVenda(record: Omit<VendaRecord, "id">): Promise<VendaRecord> {
   const { data, error } = await supabase.from("vendas").insert({
     data: record.data, canal: record.canal, sku: record.sku,
-    formato: record.formato, quantidade: record.quantidade, preco_unitario: record.precoUnitario,
+    formato: "", quantidade: record.quantidade, preco_unitario: record.precoTotal,
   }).select().single();
   if (error) throw error;
-  return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, formato: data.formato, quantidade: data.quantidade, precoUnitario: Number(data.preco_unitario) };
+  return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, quantidade: data.quantidade, precoTotal: Number(data.preco_unitario) };
 }
 
 export async function updateVenda(id: string, record: Partial<Omit<VendaRecord, "id">>): Promise<void> {
@@ -152,9 +149,8 @@ export async function updateVenda(id: string, record: Partial<Omit<VendaRecord, 
   if (record.data !== undefined) updateData.data = record.data;
   if (record.canal !== undefined) updateData.canal = record.canal;
   if (record.sku !== undefined) updateData.sku = record.sku;
-  if (record.formato !== undefined) updateData.formato = record.formato;
   if (record.quantidade !== undefined) updateData.quantidade = record.quantidade;
-  if (record.precoUnitario !== undefined) updateData.preco_unitario = record.precoUnitario;
+  if (record.precoTotal !== undefined) updateData.preco_unitario = record.precoTotal;
   const { error } = await supabase.from("vendas").update(updateData).eq("id", id);
   if (error) throw error;
 }
