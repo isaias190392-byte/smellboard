@@ -74,7 +74,7 @@ const FinanceiroPage = () => {
     const lucroBrutoCalc = receita - custoTotal;
     const markup = custoTotal ? ((receita - custoTotal) / custoTotal * 100) : 0;
 
-    const recordData: Omit<FinanceiroRecord, "id"> = {
+    const recordData: Omit<FinanceiroRecord, "id" | "createdBy" | "updatedBy"> = {
       data: form.data, tipo: form.tipo, descricao: form.descricao, sku: form.sku,
       quantidade: qty, custoUnitario: custoUn, frete, custoTotal,
       precoVenda, markup, receita, lucroBruto: lucroBrutoCalc, observacoes: form.observacoes,
