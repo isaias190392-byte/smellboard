@@ -251,10 +251,11 @@ export async function fetchFinanceiro(): Promise<FinanceiroRecord[]> {
     precoVenda: Number(r.preco_venda), markup: Number(r.markup),
     receita: Number(r.receita), lucroBruto: Number(r.lucro_bruto),
     observacoes: r.observacoes as string,
+    ...auditFields(r),
   }));
 }
 
-export async function insertFinanceiro(record: Omit<FinanceiroRecord, "id">): Promise<FinanceiroRecord> {
+export async function insertFinanceiro(record: Omit<FinanceiroRecord, "id" | "createdBy" | "updatedBy">): Promise<FinanceiroRecord> {
   const insertData: Record<string, unknown> = {
     data: record.data, tipo: record.tipo, descricao: record.descricao, sku: record.sku,
     quantidade: record.quantidade, custo_unitario: record.custoUnitario,
@@ -274,10 +275,11 @@ export async function insertFinanceiro(record: Omit<FinanceiroRecord, "id">): Pr
     precoVenda: Number(r.preco_venda), markup: Number(r.markup),
     receita: Number(r.receita), lucroBruto: Number(r.lucro_bruto),
     observacoes: r.observacoes as string,
+    ...auditFields(r),
   };
 }
 
-export async function updateFinanceiro(id: string, record: Partial<Omit<FinanceiroRecord, "id">>): Promise<void> {
+export async function updateFinanceiro(id: string, record: Partial<Omit<FinanceiroRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
   const updateData: Record<string, unknown> = {};
   if (record.data !== undefined) updateData.data = record.data;
   if (record.tipo !== undefined) updateData.tipo = record.tipo;
