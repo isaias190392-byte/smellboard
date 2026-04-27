@@ -1,6 +1,8 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import logo from "@/assets/smellgo-logo.png";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
 
 interface PageHeaderProps {
   title: string;
@@ -9,6 +11,7 @@ interface PageHeaderProps {
 
 const PageHeader = ({ title, subtitle }: PageHeaderProps) => {
   const navigate = useNavigate();
+  const { profile, signOut } = useAuth();
 
   return (
     <header className="border-b border-border bg-card/80 glass sticky top-0 z-50">
@@ -23,6 +26,12 @@ const PageHeader = ({ title, subtitle }: PageHeaderProps) => {
         <div className="ml-2">
           <h1 className="font-display text-xl font-bold text-foreground">{title}</h1>
           {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+        </div>
+        <div className="ml-auto flex items-center gap-3">
+          <span className="hidden text-sm font-medium text-muted-foreground sm:inline">{profile?.displayName}</span>
+          <Button variant="outline" size="sm" onClick={() => signOut().then(() => navigate("/login"))}>
+            <LogOut className="h-4 w-4 mr-1" /> Sair
+          </Button>
         </div>
       </div>
     </header>

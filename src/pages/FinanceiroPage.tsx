@@ -74,7 +74,7 @@ const FinanceiroPage = () => {
     const lucroBrutoCalc = receita - custoTotal;
     const markup = custoTotal ? ((receita - custoTotal) / custoTotal * 100) : 0;
 
-    const recordData: Omit<FinanceiroRecord, "id"> = {
+    const recordData: Omit<FinanceiroRecord, "id" | "createdBy" | "updatedBy"> = {
       data: form.data, tipo: form.tipo, descricao: form.descricao, sku: form.sku,
       quantidade: qty, custoUnitario: custoUn, frete, custoTotal,
       precoVenda, markup, receita, lucroBruto: lucroBrutoCalc, observacoes: form.observacoes,
@@ -231,6 +231,7 @@ const FinanceiroPage = () => {
                   <TableHead className="text-right">Custo Un.</TableHead><TableHead className="text-right">Frete</TableHead>
                   <TableHead className="text-right">Custo Total</TableHead><TableHead className="text-right">Preço Venda</TableHead>
                   <TableHead className="text-right">Markup</TableHead><TableHead className="text-right">Lucro</TableHead>
+                  <TableHead>Criado por</TableHead><TableHead>Alterado por</TableHead>
                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -250,6 +251,8 @@ const FinanceiroPage = () => {
                       <span className={`text-xs font-medium ${r.markup >= 0 ? "text-emerald-600" : "text-destructive"}`}>{r.markup.toFixed(1)}%</span>
                     </TableCell>
                     <TableCell className="text-right font-medium text-emerald-600">{fmt(r.lucroBruto)}</TableCell>
+                    <TableCell>{r.createdBy}</TableCell>
+                    <TableCell>{r.updatedBy}</TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(r)}>

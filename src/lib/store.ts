@@ -1,6 +1,13 @@
 // Shared data store (Supabase-backed)
 import { supabase } from "@/integrations/supabase/client";
 
+export type ProfileName = "Diretoria" | "Comercial" | "Usuário";
+
+export interface UserProfile {
+  userId: string;
+  displayName: ProfileName;
+}
+
 export const SKUS_UNITARIOS = ["INTENSE", "TEXAS", "SUNSET", "GARDEN", "BRISE"] as const;
 
 export const SKUS_KITS = [
@@ -54,6 +61,8 @@ export interface EstoqueRecord {
   sku: string;
   quantidade: number;
   observacoes: string;
+  createdBy: string;
+  updatedBy: string;
 }
 
 export interface VendaRecord {
@@ -63,6 +72,8 @@ export interface VendaRecord {
   sku: string;
   quantidade: number;
   precoTotal: number;
+  createdBy: string;
+  updatedBy: string;
 }
 
 export interface MarketingRecord {
@@ -74,6 +85,8 @@ export interface MarketingRecord {
   qtdEnviada: number;
   vendasGeradas: number;
   observacoes: string;
+  createdBy: string;
+  updatedBy: string;
 }
 
 export interface FinanceiroRecord {
@@ -91,9 +104,26 @@ export interface FinanceiroRecord {
   receita: number;
   lucroBruto: number;
   observacoes: string;
+  createdBy: string;
+  updatedBy: string;
 }
 
 // --- Supabase CRUD ---
+
+export async function fetchCurrentProfile(): Promise<UserProfile | null> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  const user = sessionData.session?.user;
+  if (!user) return null;
+  const { data, error } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).single();
+  if (error) throw error;
+  return { userId: user.id, displayName: ((data?.display_name as ProfileName) || "Usuário") };
+}
+
+const auditFields = (r: Record<string, unknown>) => ({
+  createdBy: (r.created_by as string) || "Sistema",
+  updatedBy: (r.updated_by as string) || "Sistema",
+});
 
 export async function fetchEstoque(): Promise<EstoqueRecord[]> {
   const { data, error } = await supabase.from("estoque").select("*").order("data", { ascending: true });
@@ -102,10 +132,11 @@ export async function fetchEstoque(): Promise<EstoqueRecord[]> {
     id: r.id, data: r.data, tipo: r.tipo as "Entrada" | "Saída",
     categoria: r.categoria, canal: r.canal, sku: r.sku, quantidade: r.quantidade,
     observacoes: (r as Record<string, unknown>).observacoes as string || "",
+    ...auditFields(r as Record<string, unknown>),
   }));
 }
 
-export async function insertEstoque(record: Omit<EstoqueRecord, "id">): Promise<EstoqueRecord> {
+export async function insertEstoque(record: Omit<EstoqueRecord, "id" | "createdBy" | "updatedBy">): Promise<EstoqueRecord> {
   const insertData: Record<string, unknown> = {
     data: record.data, tipo: record.tipo, categoria: record.categoria,
     canal: record.canal, sku: record.sku, quantidade: record.quantidade,
@@ -113,10 +144,10 @@ export async function insertEstoque(record: Omit<EstoqueRecord, "id">): Promise<
   };
   const { data, error } = await supabase.from("estoque").insert([insertData as never]).select().single();
   if (error) throw error;
-  return { id: data.id, data: data.data, tipo: data.tipo as "Entrada" | "Saída", categoria: data.categoria, canal: data.canal, sku: data.sku, quantidade: data.quantidade, observacoes: (data as Record<string, unknown>).observacoes as string || "" };
+  return { id: data.id, data: data.data, tipo: data.tipo as "Entrada" | "Saída", categoria: data.categoria, canal: data.canal, sku: data.sku, quantidade: data.quantidade, observacoes: (data as Record<string, unknown>).observacoes as string || "", ...auditFields(data as Record<string, unknown>) };
 }
 
-export async function updateEstoque(id: string, record: Partial<Omit<EstoqueRecord, "id">>): Promise<void> {
+export async function updateEstoque(id: string, record: Partial<Omit<EstoqueRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
   const { error } = await supabase.from("estoque").update(record as Record<string, unknown>).eq("id", id);
   if (error) throw error;
 }
@@ -137,19 +168,20 @@ export async function fetchVendas(): Promise<VendaRecord[]> {
   return (data || []).map(r => ({
     id: r.id, data: r.data, canal: r.canal, sku: r.sku,
     quantidade: r.quantidade, precoTotal: Number(r.preco_unitario),
+    ...auditFields(r as Record<string, unknown>),
   }));
 }
 
-export async function insertVenda(record: Omit<VendaRecord, "id">): Promise<VendaRecord> {
+export async function insertVenda(record: Omit<VendaRecord, "id" | "createdBy" | "updatedBy">): Promise<VendaRecord> {
   const { data, error } = await supabase.from("vendas").insert({
     data: record.data, canal: record.canal, sku: record.sku,
     quantidade: record.quantidade, preco_unitario: record.precoTotal,
   } as never).select().single();
   if (error) throw error;
-  return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, quantidade: data.quantidade, precoTotal: Number(data.preco_unitario) };
+  return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, quantidade: data.quantidade, precoTotal: Number(data.preco_unitario), ...auditFields(data as Record<string, unknown>) };
 }
 
-export async function updateVenda(id: string, record: Partial<Omit<VendaRecord, "id">>): Promise<void> {
+export async function updateVenda(id: string, record: Partial<Omit<VendaRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
   const updateData: Record<string, unknown> = {};
   if (record.data !== undefined) updateData.data = record.data;
   if (record.canal !== undefined) updateData.canal = record.canal;
@@ -171,10 +203,11 @@ export async function fetchMarketing(): Promise<MarketingRecord[]> {
   return (data || []).map(r => ({
     id: r.id, data: r.data, nome: r.nome, tipo: r.tipo, sku: r.sku,
     qtdEnviada: r.qtd_enviada, vendasGeradas: r.vendas_geradas, observacoes: r.observacoes,
+    ...auditFields(r as Record<string, unknown>),
   }));
 }
 
-export async function insertMarketing(record: Omit<MarketingRecord, "id">): Promise<MarketingRecord> {
+export async function insertMarketing(record: Omit<MarketingRecord, "id" | "createdBy" | "updatedBy">): Promise<MarketingRecord> {
   const { data, error } = await supabase.from("marketing").insert({
     data: record.data, nome: record.nome, tipo: record.tipo, sku: record.sku,
     qtd_enviada: record.qtdEnviada, canal_origem: "",
@@ -184,10 +217,11 @@ export async function insertMarketing(record: Omit<MarketingRecord, "id">): Prom
   return {
     id: data.id, data: data.data, nome: data.nome, tipo: data.tipo, sku: data.sku,
     qtdEnviada: data.qtd_enviada, vendasGeradas: data.vendas_geradas, observacoes: data.observacoes,
+    ...auditFields(data as Record<string, unknown>),
   };
 }
 
-export async function updateMarketing(id: string, record: Partial<Omit<MarketingRecord, "id">>): Promise<void> {
+export async function updateMarketing(id: string, record: Partial<Omit<MarketingRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
   const updateData: Record<string, unknown> = {};
   if (record.data !== undefined) updateData.data = record.data;
   if (record.nome !== undefined) updateData.nome = record.nome;
@@ -217,10 +251,11 @@ export async function fetchFinanceiro(): Promise<FinanceiroRecord[]> {
     precoVenda: Number(r.preco_venda), markup: Number(r.markup),
     receita: Number(r.receita), lucroBruto: Number(r.lucro_bruto),
     observacoes: r.observacoes as string,
+    ...auditFields(r),
   }));
 }
 
-export async function insertFinanceiro(record: Omit<FinanceiroRecord, "id">): Promise<FinanceiroRecord> {
+export async function insertFinanceiro(record: Omit<FinanceiroRecord, "id" | "createdBy" | "updatedBy">): Promise<FinanceiroRecord> {
   const insertData: Record<string, unknown> = {
     data: record.data, tipo: record.tipo, descricao: record.descricao, sku: record.sku,
     quantidade: record.quantidade, custo_unitario: record.custoUnitario,
@@ -240,10 +275,11 @@ export async function insertFinanceiro(record: Omit<FinanceiroRecord, "id">): Pr
     precoVenda: Number(r.preco_venda), markup: Number(r.markup),
     receita: Number(r.receita), lucroBruto: Number(r.lucro_bruto),
     observacoes: r.observacoes as string,
+    ...auditFields(r),
   };
 }
 
-export async function updateFinanceiro(id: string, record: Partial<Omit<FinanceiroRecord, "id">>): Promise<void> {
+export async function updateFinanceiro(id: string, record: Partial<Omit<FinanceiroRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
   const updateData: Record<string, unknown> = {};
   if (record.data !== undefined) updateData.data = record.data;
   if (record.tipo !== undefined) updateData.tipo = record.tipo;
