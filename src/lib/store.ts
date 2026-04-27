@@ -1,6 +1,13 @@
 // Shared data store (Supabase-backed)
 import { supabase } from "@/integrations/supabase/client";
 
+export type ProfileName = "Diretoria" | "Comercial" | "Usuário";
+
+export interface UserProfile {
+  userId: string;
+  displayName: ProfileName;
+}
+
 export const SKUS_UNITARIOS = ["INTENSE", "TEXAS", "SUNSET", "GARDEN", "BRISE"] as const;
 
 export const SKUS_KITS = [
@@ -54,6 +61,8 @@ export interface EstoqueRecord {
   sku: string;
   quantidade: number;
   observacoes: string;
+  createdBy: string;
+  updatedBy: string;
 }
 
 export interface VendaRecord {
@@ -63,6 +72,8 @@ export interface VendaRecord {
   sku: string;
   quantidade: number;
   precoTotal: number;
+  createdBy: string;
+  updatedBy: string;
 }
 
 export interface MarketingRecord {
@@ -74,6 +85,8 @@ export interface MarketingRecord {
   qtdEnviada: number;
   vendasGeradas: number;
   observacoes: string;
+  createdBy: string;
+  updatedBy: string;
 }
 
 export interface FinanceiroRecord {
@@ -91,9 +104,26 @@ export interface FinanceiroRecord {
   receita: number;
   lucroBruto: number;
   observacoes: string;
+  createdBy: string;
+  updatedBy: string;
 }
 
 // --- Supabase CRUD ---
+
+export async function fetchCurrentProfile(): Promise<UserProfile | null> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  const user = sessionData.session?.user;
+  if (!user) return null;
+  const { data, error } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).single();
+  if (error) throw error;
+  return { userId: user.id, displayName: ((data?.display_name as ProfileName) || "Usuário") };
+}
+
+const auditFields = (r: Record<string, unknown>) => ({
+  createdBy: (r.created_by as string) || "Sistema",
+  updatedBy: (r.updated_by as string) || "Sistema",
+});
 
 export async function fetchEstoque(): Promise<EstoqueRecord[]> {
   const { data, error } = await supabase.from("estoque").select("*").order("data", { ascending: true });
@@ -102,10 +132,11 @@ export async function fetchEstoque(): Promise<EstoqueRecord[]> {
     id: r.id, data: r.data, tipo: r.tipo as "Entrada" | "Saída",
     categoria: r.categoria, canal: r.canal, sku: r.sku, quantidade: r.quantidade,
     observacoes: (r as Record<string, unknown>).observacoes as string || "",
+    ...auditFields(r as Record<string, unknown>),
   }));
 }
 
-export async function insertEstoque(record: Omit<EstoqueRecord, "id">): Promise<EstoqueRecord> {
+export async function insertEstoque(record: Omit<EstoqueRecord, "id" | "createdBy" | "updatedBy">): Promise<EstoqueRecord> {
   const insertData: Record<string, unknown> = {
     data: record.data, tipo: record.tipo, categoria: record.categoria,
     canal: record.canal, sku: record.sku, quantidade: record.quantidade,
@@ -113,10 +144,10 @@ export async function insertEstoque(record: Omit<EstoqueRecord, "id">): Promise<
   };
   const { data, error } = await supabase.from("estoque").insert([insertData as never]).select().single();
   if (error) throw error;
-  return { id: data.id, data: data.data, tipo: data.tipo as "Entrada" | "Saída", categoria: data.categoria, canal: data.canal, sku: data.sku, quantidade: data.quantidade, observacoes: (data as Record<string, unknown>).observacoes as string || "" };
+  return { id: data.id, data: data.data, tipo: data.tipo as "Entrada" | "Saída", categoria: data.categoria, canal: data.canal, sku: data.sku, quantidade: data.quantidade, observacoes: (data as Record<string, unknown>).observacoes as string || "", ...auditFields(data as Record<string, unknown>) };
 }
 
-export async function updateEstoque(id: string, record: Partial<Omit<EstoqueRecord, "id">>): Promise<void> {
+export async function updateEstoque(id: string, record: Partial<Omit<EstoqueRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
   const { error } = await supabase.from("estoque").update(record as Record<string, unknown>).eq("id", id);
   if (error) throw error;
 }
