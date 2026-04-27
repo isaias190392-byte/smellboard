@@ -207,7 +207,7 @@ const EstoquePage = () => {
                   <TableHead>Canal</TableHead><TableHead>SKU</TableHead>
                   <TableHead className="text-right">Qtd</TableHead><TableHead className="text-right">Custo Un.</TableHead>
                   <TableHead className="text-right">Valor Total</TableHead><TableHead className="text-right">Saldo</TableHead>
-                  <TableHead>Obs</TableHead>
+                  <TableHead>Obs</TableHead><TableHead>Criado por</TableHead><TableHead>Alterado por</TableHead>
                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -237,6 +237,8 @@ const EstoquePage = () => {
                       <TableCell className="text-right font-medium">{r.tipo === "Entrada" ? "" : "-"}R$ {valorTotal.toFixed(2)}</TableCell>
                       <TableCell className="text-right font-bold">{runningBalance}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[120px] truncate">{r.observacoes || "—"}</TableCell>
+                      <TableCell>{r.createdBy}</TableCell>
+                      <TableCell>{r.updatedBy}</TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(r)}>
