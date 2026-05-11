@@ -34,7 +34,7 @@ const ClientesPage = () => {
   const stats = useMemo(() => {
     const m: Record<string, { total: number; n: number; ultima: string }> = {};
     vendas.forEach(v => {
-      const c = (v as VendaRecord & { cliente_id?: string }).cliente_id;
+      const c = v.clienteId;
       if (!c) return;
       if (!m[c]) m[c] = { total: 0, n: 0, ultima: "" };
       m[c].total += v.precoTotal;
