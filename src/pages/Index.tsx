@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, ShoppingCart, Megaphone, BarChart3, TrendingUp, DollarSign, Boxes, Calculator } from "lucide-react";
+import { Package, ShoppingCart, Megaphone, BarChart3, TrendingUp, DollarSign, Boxes, Calculator, Wallet, Users, FileBarChart } from "lucide-react";
 import DepartmentCard from "@/components/DepartmentCard";
 import { fetchEstoque, fetchVendas, calcSaldoEstoque, CONFIG, EstoqueRecord, VendaRecord, getUnidadesReais } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -50,11 +50,14 @@ const Index = () => {
         </div>
       </div>
       <div className="mx-auto max-w-7xl px-6 -mt-8 pb-16">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <DepartmentCard title="Estoque" description="Entradas, saídas e saldo por SKU" icon={Package} path="/estoque" metric={`${saldoEstoque} un`} metricLabel="Saldo atual" />
           <DepartmentCard title="Vendas" description="Registros de venda por canal e SKU" icon={ShoppingCart} path="/vendas" metric={fmt(receitaTotal)} metricLabel="Receita total" />
           <DepartmentCard title="Marketing" description="Influencers, UGC e parcerias" icon={Megaphone} path="/marketing" />
-          <DepartmentCard title="Financeiro" description="Custos, markup e rentabilidade" icon={Calculator} path="/financeiro" />
+          <DepartmentCard title="Clientes" description="Cadastro e CRM básico" icon={Users} path="/clientes" />
+          <DepartmentCard title="Compras / Custos" description="Aquisições e custo de produto" icon={Calculator} path="/financeiro" />
+          <DepartmentCard title="Despesas" description="Fixas, variáveis e impostos" icon={Wallet} path="/despesas" />
+          <DepartmentCard title="Financeiro & DRE" description="Fluxo de caixa, contas a receber, DRE" icon={FileBarChart} path="/dre" />
           <DepartmentCard title="Dashboard" description="Indicadores estratégicos" icon={BarChart3} path="/dashboard" metric={`${((lucroTotal / (receitaTotal || 1)) * 100).toFixed(1)}%`} metricLabel="Margem média" />
         </div>
       </div>

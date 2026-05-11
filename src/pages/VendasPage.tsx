@@ -66,7 +66,7 @@ const VendasPage = () => {
         await updateVenda(editingId, { data: form.data, canal: form.canal, sku: form.sku, quantidade: qty, precoTotal: preco });
         await deleteEstoqueByToken(`VENDA:${editingId}`);
       } else {
-        const newRecord = await insertVenda({ data: form.data, canal: form.canal, sku: form.sku, quantidade: qty, precoTotal: preco });
+        const newRecord = await insertVenda({ data: form.data, canal: form.canal, sku: form.sku, quantidade: qty, precoTotal: preco, clienteId: null });
         setRecords(prev => [...prev, newRecord]);
         await Promise.all(Object.entries(decomporSku(form.sku, qty)).map(([sku, quantidade]) => insertEstoque({ data: form.data, tipo: "Saída", categoria: "Venda", canal: form.canal, sku, quantidade, observacoes: `VENDA:${newRecord.id} - ${form.sku}` })));
         toast.success("Venda registrada!");

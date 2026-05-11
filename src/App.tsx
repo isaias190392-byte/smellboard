@@ -11,6 +11,9 @@ import VendasPage from "./pages/VendasPage.tsx";
 import MarketingPage from "./pages/MarketingPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
 import FinanceiroPage from "./pages/FinanceiroPage.tsx";
+import DespesasPage from "./pages/DespesasPage.tsx";
+import ClientesPage from "./pages/ClientesPage.tsx";
+import DREPage from "./pages/DREPage.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -31,6 +34,9 @@ const App = () => (
             <Route path="/marketing" element={<ProtectedRoute><MarketingPage /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/financeiro" element={<ProtectedRoute><FinanceiroPage /></ProtectedRoute>} />
+            <Route path="/despesas" element={<ProtectedRoute><DespesasPage /></ProtectedRoute>} />
+            <Route path="/clientes" element={<ProtectedRoute><ClientesPage /></ProtectedRoute>} />
+            <Route path="/dre" element={<ProtectedRoute><DREPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
