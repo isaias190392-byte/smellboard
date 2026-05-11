@@ -14,6 +14,167 @@ export type Database = {
   }
   public: {
     Tables: {
+      clientes: {
+        Row: {
+          canal_origem: string
+          cidade: string
+          cpf_cnpj: string
+          created_at: string
+          created_by: string
+          email: string
+          id: string
+          nome: string
+          observacoes: string
+          telefone: string
+          uf: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          canal_origem?: string
+          cidade?: string
+          cpf_cnpj?: string
+          created_at?: string
+          created_by?: string
+          email?: string
+          id?: string
+          nome: string
+          observacoes?: string
+          telefone?: string
+          uf?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Update: {
+          canal_origem?: string
+          cidade?: string
+          cpf_cnpj?: string
+          created_at?: string
+          created_by?: string
+          email?: string
+          id?: string
+          nome?: string
+          observacoes?: string
+          telefone?: string
+          uf?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
+      contas_receber: {
+        Row: {
+          cliente_id: string | null
+          cliente_nome: string
+          created_at: string
+          created_by: string
+          data: string
+          data_recebimento: string | null
+          descricao: string
+          id: string
+          observacoes: string
+          status: string
+          updated_at: string
+          updated_by: string
+          valor: number
+          vencimento: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          cliente_nome?: string
+          created_at?: string
+          created_by?: string
+          data: string
+          data_recebimento?: string | null
+          descricao?: string
+          id?: string
+          observacoes?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string
+          valor?: number
+          vencimento?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          cliente_nome?: string
+          created_at?: string
+          created_by?: string
+          data?: string
+          data_recebimento?: string | null
+          descricao?: string
+          id?: string
+          observacoes?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string
+          valor?: number
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contas_receber_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      despesas: {
+        Row: {
+          categoria: string
+          created_at: string
+          created_by: string
+          data: string
+          data_pagamento: string | null
+          data_vencimento: string | null
+          descricao: string
+          forma_pagamento: string
+          id: string
+          observacoes: string
+          status: string
+          subcategoria: string
+          updated_at: string
+          updated_by: string
+          valor: number
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          created_by?: string
+          data: string
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          descricao?: string
+          forma_pagamento?: string
+          id?: string
+          observacoes?: string
+          status?: string
+          subcategoria?: string
+          updated_at?: string
+          updated_by?: string
+          valor?: number
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          created_by?: string
+          data?: string
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          descricao?: string
+          forma_pagamento?: string
+          id?: string
+          observacoes?: string
+          status?: string
+          subcategoria?: string
+          updated_at?: string
+          updated_by?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       estoque: {
         Row: {
           canal: string
@@ -221,6 +382,7 @@ export type Database = {
       vendas: {
         Row: {
           canal: string
+          cliente_id: string | null
           created_at: string
           created_by: string
           data: string
@@ -233,6 +395,7 @@ export type Database = {
         }
         Insert: {
           canal: string
+          cliente_id?: string | null
           created_at?: string
           created_by?: string
           data: string
@@ -245,6 +408,7 @@ export type Database = {
         }
         Update: {
           canal?: string
+          cliente_id?: string | null
           created_at?: string
           created_by?: string
           data?: string
@@ -255,7 +419,15 @@ export type Database = {
           updated_at?: string
           updated_by?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vendas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
