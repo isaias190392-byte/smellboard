@@ -13,9 +13,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import {
   fetchVendas, VendaRecord, fetchDespesas, DespesaRecord, fetchContasReceber, ContaReceberRecord,
   fetchClientes, ClienteRecord, insertContaReceber, updateContaReceber, deleteContaReceber,
-  insertDespesa, updateDespesa, deleteDespesa,
-  calcDRE, CONFIG, getUnidadesReais,
-  CATEGORIAS_DESPESA, SUBCATEGORIAS_DESPESA, FORMAS_PAGAMENTO,
+  calcDRE,
 } from "@/lib/store";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
