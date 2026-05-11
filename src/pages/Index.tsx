@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, ShoppingCart, Megaphone, BarChart3, TrendingUp, DollarSign, Boxes, Calculator } from "lucide-react";
+import { Package, ShoppingCart, Megaphone, BarChart3, TrendingUp, DollarSign, Boxes, Calculator, Wallet, Users, FileBarChart } from "lucide-react";
 import DepartmentCard from "@/components/DepartmentCard";
 import { fetchEstoque, fetchVendas, calcSaldoEstoque, CONFIG, EstoqueRecord, VendaRecord, getUnidadesReais } from "@/lib/store";
 import { Button } from "@/components/ui/button";
