@@ -72,6 +72,7 @@ export interface VendaRecord {
   sku: string;
   quantidade: number;
   precoTotal: number;
+  clienteId: string | null;
   createdBy: string;
   updatedBy: string;
 }
