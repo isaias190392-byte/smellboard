@@ -340,3 +340,246 @@ export function calcSaldoPorSku(records: EstoqueRecord[]): Record<string, number
   }
   return saldo;
 }
+
+// ============================================================
+// DESPESAS
+// ============================================================
+export const CATEGORIAS_DESPESA = ["Fixa", "Variável", "Imposto"] as const;
+export const SUBCATEGORIAS_DESPESA: Record<string, string[]> = {
+  Fixa: ["Aluguel", "Salários", "Pró-labore", "Software/SaaS", "Contador", "Internet/Telefone", "Energia", "Outros"],
+  "Variável": ["Taxa Marketplace", "Gateway Pagamento", "Comissão", "Frete Pago", "Embalagem", "Marketing/Ads", "Insumos", "Outros"],
+  Imposto: ["Simples Nacional", "ICMS", "ISS", "MEI/DAS", "INSS", "Outros"],
+};
+export const FORMAS_PAGAMENTO = ["Pix", "Cartão Crédito", "Cartão Débito", "Boleto", "Dinheiro", "Transferência"] as const;
+export const STATUS_DESPESA = ["Pago", "A Pagar"] as const;
+
+export interface DespesaRecord {
+  id: string;
+  data: string;
+  categoria: string;
+  subcategoria: string;
+  descricao: string;
+  valor: number;
+  status: string;
+  dataVencimento: string | null;
+  dataPagamento: string | null;
+  formaPagamento: string;
+  observacoes: string;
+  createdBy: string;
+  updatedBy: string;
+}
+
+const mapDespesa = (r: Record<string, unknown>): DespesaRecord => ({
+  id: r.id as string, data: r.data as string,
+  categoria: r.categoria as string, subcategoria: r.subcategoria as string,
+  descricao: r.descricao as string, valor: Number(r.valor),
+  status: r.status as string,
+  dataVencimento: (r.data_vencimento as string) || null,
+  dataPagamento: (r.data_pagamento as string) || null,
+  formaPagamento: r.forma_pagamento as string,
+  observacoes: r.observacoes as string,
+  ...auditFields(r),
+});
+
+export async function fetchDespesas(): Promise<DespesaRecord[]> {
+  const { data, error } = await supabase.from("despesas").select("*").order("data", { ascending: false });
+  if (error) throw error;
+  return (data || []).map(r => mapDespesa(r as Record<string, unknown>));
+}
+
+export async function insertDespesa(r: Omit<DespesaRecord, "id" | "createdBy" | "updatedBy">): Promise<DespesaRecord> {
+  const payload = {
+    data: r.data, categoria: r.categoria, subcategoria: r.subcategoria,
+    descricao: r.descricao, valor: r.valor, status: r.status,
+    data_vencimento: r.dataVencimento, data_pagamento: r.dataPagamento,
+    forma_pagamento: r.formaPagamento, observacoes: r.observacoes,
+  };
+  const { data, error } = await supabase.from("despesas").insert([payload as never]).select().single();
+  if (error) throw error;
+  return mapDespesa(data as Record<string, unknown>);
+}
+
+export async function updateDespesa(id: string, r: Partial<Omit<DespesaRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
+  const u: Record<string, unknown> = {};
+  if (r.data !== undefined) u.data = r.data;
+  if (r.categoria !== undefined) u.categoria = r.categoria;
+  if (r.subcategoria !== undefined) u.subcategoria = r.subcategoria;
+  if (r.descricao !== undefined) u.descricao = r.descricao;
+  if (r.valor !== undefined) u.valor = r.valor;
+  if (r.status !== undefined) u.status = r.status;
+  if (r.dataVencimento !== undefined) u.data_vencimento = r.dataVencimento;
+  if (r.dataPagamento !== undefined) u.data_pagamento = r.dataPagamento;
+  if (r.formaPagamento !== undefined) u.forma_pagamento = r.formaPagamento;
+  if (r.observacoes !== undefined) u.observacoes = r.observacoes;
+  const { error } = await supabase.from("despesas").update(u).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteDespesa(id: string): Promise<void> {
+  const { error } = await supabase.from("despesas").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ============================================================
+// CLIENTES
+// ============================================================
+export interface ClienteRecord {
+  id: string;
+  nome: string;
+  cpfCnpj: string;
+  email: string;
+  telefone: string;
+  cidade: string;
+  uf: string;
+  canalOrigem: string;
+  observacoes: string;
+  createdBy: string;
+  updatedBy: string;
+}
+
+const mapCliente = (r: Record<string, unknown>): ClienteRecord => ({
+  id: r.id as string, nome: r.nome as string,
+  cpfCnpj: r.cpf_cnpj as string, email: r.email as string,
+  telefone: r.telefone as string, cidade: r.cidade as string, uf: r.uf as string,
+  canalOrigem: r.canal_origem as string, observacoes: r.observacoes as string,
+  ...auditFields(r),
+});
+
+export async function fetchClientes(): Promise<ClienteRecord[]> {
+  const { data, error } = await supabase.from("clientes").select("*").order("nome");
+  if (error) throw error;
+  return (data || []).map(r => mapCliente(r as Record<string, unknown>));
+}
+
+export async function insertCliente(r: Omit<ClienteRecord, "id" | "createdBy" | "updatedBy">): Promise<ClienteRecord> {
+  const payload = {
+    nome: r.nome, cpf_cnpj: r.cpfCnpj, email: r.email, telefone: r.telefone,
+    cidade: r.cidade, uf: r.uf, canal_origem: r.canalOrigem, observacoes: r.observacoes,
+  };
+  const { data, error } = await supabase.from("clientes").insert([payload as never]).select().single();
+  if (error) throw error;
+  return mapCliente(data as Record<string, unknown>);
+}
+
+export async function updateCliente(id: string, r: Partial<Omit<ClienteRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
+  const u: Record<string, unknown> = {};
+  if (r.nome !== undefined) u.nome = r.nome;
+  if (r.cpfCnpj !== undefined) u.cpf_cnpj = r.cpfCnpj;
+  if (r.email !== undefined) u.email = r.email;
+  if (r.telefone !== undefined) u.telefone = r.telefone;
+  if (r.cidade !== undefined) u.cidade = r.cidade;
+  if (r.uf !== undefined) u.uf = r.uf;
+  if (r.canalOrigem !== undefined) u.canal_origem = r.canalOrigem;
+  if (r.observacoes !== undefined) u.observacoes = r.observacoes;
+  const { error } = await supabase.from("clientes").update(u).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteCliente(id: string): Promise<void> {
+  const { error } = await supabase.from("clientes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ============================================================
+// CONTAS A RECEBER
+// ============================================================
+export const STATUS_CONTA_RECEBER = ["Pendente", "Recebido"] as const;
+
+export interface ContaReceberRecord {
+  id: string;
+  data: string;
+  descricao: string;
+  clienteId: string | null;
+  clienteNome: string;
+  valor: number;
+  vencimento: string | null;
+  status: string;
+  dataRecebimento: string | null;
+  observacoes: string;
+  createdBy: string;
+  updatedBy: string;
+}
+
+const mapConta = (r: Record<string, unknown>): ContaReceberRecord => ({
+  id: r.id as string, data: r.data as string,
+  descricao: r.descricao as string,
+  clienteId: (r.cliente_id as string) || null,
+  clienteNome: r.cliente_nome as string, valor: Number(r.valor),
+  vencimento: (r.vencimento as string) || null,
+  status: r.status as string,
+  dataRecebimento: (r.data_recebimento as string) || null,
+  observacoes: r.observacoes as string,
+  ...auditFields(r),
+});
+
+export async function fetchContasReceber(): Promise<ContaReceberRecord[]> {
+  const { data, error } = await supabase.from("contas_receber").select("*").order("vencimento", { ascending: true });
+  if (error) throw error;
+  return (data || []).map(r => mapConta(r as Record<string, unknown>));
+}
+
+export async function insertContaReceber(r: Omit<ContaReceberRecord, "id" | "createdBy" | "updatedBy">): Promise<ContaReceberRecord> {
+  const payload = {
+    data: r.data, descricao: r.descricao, cliente_id: r.clienteId,
+    cliente_nome: r.clienteNome, valor: r.valor, vencimento: r.vencimento,
+    status: r.status, data_recebimento: r.dataRecebimento, observacoes: r.observacoes,
+  };
+  const { data, error } = await supabase.from("contas_receber").insert([payload as never]).select().single();
+  if (error) throw error;
+  return mapConta(data as Record<string, unknown>);
+}
+
+export async function updateContaReceber(id: string, r: Partial<Omit<ContaReceberRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
+  const u: Record<string, unknown> = {};
+  if (r.data !== undefined) u.data = r.data;
+  if (r.descricao !== undefined) u.descricao = r.descricao;
+  if (r.clienteId !== undefined) u.cliente_id = r.clienteId;
+  if (r.clienteNome !== undefined) u.cliente_nome = r.clienteNome;
+  if (r.valor !== undefined) u.valor = r.valor;
+  if (r.vencimento !== undefined) u.vencimento = r.vencimento;
+  if (r.status !== undefined) u.status = r.status;
+  if (r.dataRecebimento !== undefined) u.data_recebimento = r.dataRecebimento;
+  if (r.observacoes !== undefined) u.observacoes = r.observacoes;
+  const { error } = await supabase.from("contas_receber").update(u).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteContaReceber(id: string): Promise<void> {
+  const { error } = await supabase.from("contas_receber").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ============================================================
+// DRE — Demonstração do Resultado do Exercício (mensal)
+// ============================================================
+export interface DRERow {
+  receitaBruta: number;
+  impostos: number;
+  receitaLiquida: number;
+  cmv: number;
+  lucroBruto: number;
+  despesasVariaveis: number;
+  despesasFixas: number;
+  ebitda: number;
+  margemEbitda: number;
+}
+
+export function calcDRE(
+  vendas: VendaRecord[],
+  despesas: DespesaRecord[],
+  mes: string, // formato YYYY-MM
+): DRERow {
+  const filtroMes = (d: string) => d.startsWith(mes);
+  const vMes = vendas.filter(v => filtroMes(v.data));
+  const dMes = despesas.filter(d => filtroMes(d.data));
+  const receitaBruta = vMes.reduce((a, v) => a + v.precoTotal, 0);
+  const cmv = vMes.reduce((a, v) => a + getUnidadesReais(v.sku, v.quantidade) * CONFIG.custoUnitario, 0);
+  const impostos = dMes.filter(d => d.categoria === "Imposto").reduce((a, d) => a + d.valor, 0);
+  const despesasVariaveis = dMes.filter(d => d.categoria === "Variável").reduce((a, d) => a + d.valor, 0);
+  const despesasFixas = dMes.filter(d => d.categoria === "Fixa").reduce((a, d) => a + d.valor, 0);
+  const receitaLiquida = receitaBruta - impostos;
+  const lucroBruto = receitaLiquida - cmv;
+  const ebitda = lucroBruto - despesasVariaveis - despesasFixas;
+  const margemEbitda = receitaBruta ? (ebitda / receitaBruta) * 100 : 0;
+  return { receitaBruta, impostos, receitaLiquida, cmv, lucroBruto, despesasVariaveis, despesasFixas, ebitda, margemEbitda };
+}
