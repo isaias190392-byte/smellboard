@@ -11,6 +11,9 @@ import VendasPage from "./pages/VendasPage.tsx";
 import MarketingPage from "./pages/MarketingPage.tsx";
 import DashboardPage from "./pages/DashboardPage.tsx";
 import FinanceiroPage from "./pages/FinanceiroPage.tsx";
+import DespesasPage from "./pages/DespesasPage.tsx";
+import ClientesPage from "./pages/ClientesPage.tsx";
+import DREPage from "./pages/DREPage.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
