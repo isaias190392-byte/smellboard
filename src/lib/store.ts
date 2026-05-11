@@ -166,20 +166,26 @@ export async function deleteEstoqueByToken(token: string): Promise<void> {
 export async function fetchVendas(): Promise<VendaRecord[]> {
   const { data, error } = await supabase.from("vendas").select("*").order("data", { ascending: true });
   if (error) throw error;
-  return (data || []).map(r => ({
-    id: r.id, data: r.data, canal: r.canal, sku: r.sku,
-    quantidade: r.quantidade, precoTotal: Number(r.preco_unitario),
-    ...auditFields(r as Record<string, unknown>),
-  }));
+  return (data || []).map(r => {
+    const rec = r as Record<string, unknown>;
+    return {
+      id: r.id, data: r.data, canal: r.canal, sku: r.sku,
+      quantidade: r.quantidade, precoTotal: Number(r.preco_unitario),
+      clienteId: (rec.cliente_id as string) || null,
+      ...auditFields(rec),
+    };
+  });
 }
 
 export async function insertVenda(record: Omit<VendaRecord, "id" | "createdBy" | "updatedBy">): Promise<VendaRecord> {
   const { data, error } = await supabase.from("vendas").insert({
     data: record.data, canal: record.canal, sku: record.sku,
     quantidade: record.quantidade, preco_unitario: record.precoTotal,
+    cliente_id: record.clienteId,
   } as never).select().single();
   if (error) throw error;
-  return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, quantidade: data.quantidade, precoTotal: Number(data.preco_unitario), ...auditFields(data as Record<string, unknown>) };
+  const rec = data as Record<string, unknown>;
+  return { id: data.id, data: data.data, canal: data.canal, sku: data.sku, quantidade: data.quantidade, precoTotal: Number(data.preco_unitario), clienteId: (rec.cliente_id as string) || null, ...auditFields(rec) };
 }
 
 export async function updateVenda(id: string, record: Partial<Omit<VendaRecord, "id" | "createdBy" | "updatedBy">>): Promise<void> {
@@ -189,6 +195,7 @@ export async function updateVenda(id: string, record: Partial<Omit<VendaRecord, 
   if (record.sku !== undefined) updateData.sku = record.sku;
   if (record.quantidade !== undefined) updateData.quantidade = record.quantidade;
   if (record.precoTotal !== undefined) updateData.preco_unitario = record.precoTotal;
+  if (record.clienteId !== undefined) updateData.cliente_id = record.clienteId;
   const { error } = await supabase.from("vendas").update(updateData).eq("id", id);
   if (error) throw error;
 }
